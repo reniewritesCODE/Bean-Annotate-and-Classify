@@ -14,7 +14,7 @@ S3_BUCKET=beanscan
 # Security
 SECRET_KEY=your-secret-key-change-in-production-make-it-long-and-random
 
-# ML / YOLO
+# ML / YOLaO
 YOLO_BASE_MODEL_PATH=models/base/robusta_base.pt
 
 # MLflow (optional but recommended)
