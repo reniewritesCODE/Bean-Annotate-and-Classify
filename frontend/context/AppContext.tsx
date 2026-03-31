@@ -8,6 +8,7 @@ type ViewType =
   | 'dashboard'
   | 'upload'
   | 'annotate'
+  | 'test'
   | 'train'
   | 'review'
   | 'registry'
@@ -83,7 +84,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }
-
+  
 export function useApp() {
   const context = useContext(AppContext);
   if (context === undefined) {

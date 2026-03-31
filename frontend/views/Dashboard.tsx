@@ -15,7 +15,7 @@ import { FileImage, CheckCircle, Database } from 'lucide-react';
 
 export function Dashboard() {
   return (
-    <div className="p-8 space-y-8">
+    <div className="p-6 space-y-4">
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <StatCard

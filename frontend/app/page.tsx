@@ -7,13 +7,14 @@ import { Dashboard } from '@/views/Dashboard';
 import { UploadView } from '@/views/Upload';
 import { AnnotateView } from '@/views/Annotate';
 import { TrainView } from '@/views/Train';
+import { Test } from '@/views/Test';
 import { ReviewView } from '@/views/Review';
 import { RegistryView } from '@/views/Registry';
 import { DetectView } from '@/views/Detect';
 import { useApp } from '@/context/AppContext';
 
 export default function Home() {
-  const { currentView } = useApp();
+  const { currentView } = useApp(); 
 
   const renderView = () => {
     switch (currentView) {
@@ -25,6 +26,8 @@ export default function Home() {
         return <AnnotateView />;
       case 'train':
         return <TrainView />;
+      case 'test':
+        return <Test />;
       case 'review':
         return <ReviewView />;
       case 'registry':
@@ -37,7 +40,7 @@ export default function Home() {
   };
 
   return (
-    <div className="flex h-screen bg-background">
+    <div className="flex h-screen bg-foreground">
       {/* Sidebar */}
       <Sidebar />
 

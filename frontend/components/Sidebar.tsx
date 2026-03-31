@@ -20,6 +20,7 @@ const OVERVIEW_VIEWS = [
 const ML_WORKFLOW = [
   { id: 'upload', label: 'Upload dataset', icon: Upload, step: 1 },
   { id: 'annotate', label: 'Annotate', icon: Edit3, step: 2 },
+  { id: 'test', label: 'test', icon: Edit3, step: 2 },
   { id: 'train', label: 'Train Model', icon: Zap, step: 3 },
   { id: 'review', label: 'Model Review', icon: CheckCircle, step: 4 },
   { id: 'registry', label: 'Model Registry', icon: Database, step: 5 },
