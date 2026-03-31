@@ -1,0 +1,23 @@
+<View>
+  <Image name="image" value="$image" zoom="true" zoomControl="true"/>
+  
+  <Header value="Category 1 — Primary defects"/>
+  <RectangleLabels name="label" toName="image">
+    <Label value="Full Black" background="#E24B4A"/>
+    <Label value="Full Sour" background="#D85A30"/>
+    <Label value="Full Cherry/Pod" background="#BA7517"/>
+    <Label value="Fungus Damage" background="#993556"/>
+    <Label value="Severe Insect Damage" background="#7F77DD"/>
+    <Label value="Foreign Matter" background="#378ADD"/>
+    <Label value="Partial Black" background="#2D8A5A"/>
+    <Label value="Partial Sour" background="#639922"/>
+    <Label value="Hull/Husk" background="#888780"/>
+    <Label value="Parchment/Pergamino" background="#5F5E5A"/>
+    <Label value="Slight Insect Damage" background="#BA7517"/>
+    <Label value="Floater" background="#185FA5"/>
+    <Label value="Immature/Unripe" background="#0F6E56"/>
+    <Label value="Withered" background="#993C1D"/>
+    <Label value="Shell" background="#534AB7"/>
+    <Label value="Broken/Chipped/Cut" background="#3B6D11"/>
+  </RectangleLabels>
+</View>

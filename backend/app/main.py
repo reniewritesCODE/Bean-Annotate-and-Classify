@@ -1,14 +1,22 @@
-﻿from fastapi import FastAPI
-from app.database import engine
-from app.models import Base
+﻿# backend/app/main.py - MINIMAL VERSION FOR DEBUGGING
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
-app = FastAPI(title='BeanScan')
+app = FastAPI(title="BeanScan API")
 
-# Create tables on startup (for development only)
-@app.on_event('startup')
-def create_tables():
-    Base.metadata.create_all(bind=engine)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-@app.get('/health')
-def health():
-    return {'status': 'ok'}
+@app.get("/health")
+async def health_check():
+    return {
+        "status": "healthy",
+        "message": "BeanScan API is running (minimal version)"
+    }
+
+print("✅ Minimal FastAPI app started successfully")

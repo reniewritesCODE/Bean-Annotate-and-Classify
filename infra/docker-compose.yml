@@ -25,8 +25,11 @@ services:
     build: ../backend
     ports: ['8000:8000']
     env_file: ../.env
+    environment:
+      DATABASE_URL: postgresql://beanscan:beanscanpw@postgres:5432/beanscan  # ← overrides .endv
     depends_on: [postgres, redis, minio]
     volumes: ['../backend:/app']
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
   worker:
     build: ../backend
@@ -46,6 +49,41 @@ services:
     depends_on:
       - postgres
 
+  label-studio:
+    image: heartexlabs/label-studio:latest
+    ports:
+      - "8080:8080"
+    environment:
+      DJANGO_DB: default
+      POSTGRE_NAME: labelstudio
+      POSTGRE_USER: ls
+      POSTGRE_PASSWORD: lspw
+      POSTGRE_HOST: ls-postgres
+      POSTGRE_PORT: 5432
+      LABEL_STUDIO_LOCAL_FILES_SERVING_ENABLED: "true"
+      LABEL_STUDIO_LOCAL_FILES_DOCUMENT_ROOT: /data
+    volumes:
+      - ls_data:/label-studio/data
+    depends_on:
+      - ls-postgres
+      - ls-redis
+    restart: unless-stopped
+
+  ls-postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: labelstudio
+      POSTGRES_USER: ls
+      POSTGRES_PASSWORD: lspw
+    volumes: [ls_postgres_data:/var/lib/postgresql/data]
+
+  ls-redis:
+    image: redis:7-alpine
+    volumes: [ls_redis_data:/data]
+
 volumes:
   postgres_data:
   minio_data:
+  ls_data:
+  ls_postgres_data:
+  ls_redis_data:
