@@ -1,5 +1,5 @@
 # backend/app/schemas.py
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from datetime import datetime
 from typing import Optional, Literal
 
@@ -16,7 +16,7 @@ class ImageResponse(BaseModel):
     class Config:
         from_attributes = True
 
-UserRole = Literal["admin", "annotator", "viewer"]
+UserRole = Literal["admin", "annotator", "trainer"]
 
 # Schemas for authentication
 class LoginRequest(BaseModel):
@@ -32,6 +32,10 @@ class RefreshRequest(BaseModel):
     refresh_token: str
 
 class UserPublic(BaseModel):
-    username: str
+    email: EmailStr
     role: UserRole
+
+class UserCreate(BaseModel):
+    email: EmailStr
+    password: str
 
