@@ -84,7 +84,7 @@ function CatBadge({ cat }: { cat: 1 | 2 }) {
 }
 
 // ─── Main AnnotateView ─────────────────────────────────────────────────────────
-export function AnnotateView() {
+export function Test() {
   const { images, annotations, setAnnotations, addToast } = useApp();
 
   // Add useRef to your imports from 'react'
@@ -287,7 +287,13 @@ export function AnnotateView() {
                 Defect classes
               </h3>
             </div>
-            <div className="custom-scrollbar pl-3 pb-3 flex-1 min-h-0 overflow-y-auto">
+            <div
+              className="defect-scroll pl-3 pb-3 flex-1 min-h-0 overflow-y-auto"
+              style={{
+                scrollbarWidth: 'thin',
+                scrollbarColor: 'rgba(255,255,255,0.3) rgba(255,255,255,0.05)',
+              }}
+            >
               <div ref={scrollContainerRef} className='pr-2 space-y-1'>
                  {DEFECT_CLASSES.map((cls, idx) => {
                     const classId = idx + 1;
@@ -339,7 +345,13 @@ export function AnnotateView() {
                 Image queue
               </h3>
             </div>
-            <div className="custom-scrollbar pl-2 flex-1 min-h-0 overflow-y-auto">
+            <div
+              className="pl-2 flex-1 min-h-0 overflow-y-auto"
+              style={{
+                scrollbarWidth: 'thin',
+                scrollbarColor: 'rgba(255,255,255,0.3) rgba(255,255,255,0.05)',
+              }}
+            >
               <div className="px-2 space-y-1">
                 {images.length === 0 ? (
                   <p className="text-xs text-muted-foreground text-center py-4 px-2">

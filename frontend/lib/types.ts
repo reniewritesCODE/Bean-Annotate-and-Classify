@@ -11,6 +11,7 @@ export interface BoundingBox {
   y: number;
   w: number;
   h: number;
+  id?: string;
 }
 
 export interface ImageData {

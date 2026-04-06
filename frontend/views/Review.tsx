@@ -5,23 +5,27 @@ import { MODELS, DEFECT_CLASSES } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
 import { useApp } from '@/context/AppContext';
 import { CheckCircle, Zap } from 'lucide-react';
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from 'recharts';
+const AP_DATA_STATIC = [
+  { name: 'Full Black', value: 93 },
+  { name: 'Full Sour', value: 89 },
+  { name: 'Fungus Damage', value: 86 },
+  { name: 'Severe Insect', value: 80 },
+  { name: 'Partial Black', value: 87 },
+  { name: 'Partial Sour', value: 84 },
+  { name: 'Immature', value: 79 },
+  { name: 'Broken/Cut', value: 75 },
+];
 
-const AP_DATA = DEFECT_CLASSES.map((cls) => ({
-  class: cls.name,
-  Baseline: Math.random() * 0.3 + 0.4,
-  Proposed: Math.random() * 0.3 + 0.6,
-}));
-
+const CHART_COLORS: Record<string, string> = {
+  'Full Black': '#ef4444',
+  'Full Sour': '#ea580c',
+  'Fungus Damage': '#d97706',
+  'Severe Insect': '#be185d',
+  'Partial Black': '#8b5cf6',
+  'Partial Sour': '#3b82f6',
+  'Immature': '#10b981',
+  'Broken/Cut': '#65a30d'
+};
 export function ReviewView() {
   const { addToast } = useApp();
   const baseline = MODELS.find((m) => m.type === 'baseline');
@@ -36,9 +40,9 @@ export function ReviewView() {
   };
 
   return (
-    <div className="p-8 space-y-8">
+    <div className="p-4 space-y-4">
       {/* Model Comparison */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Baseline */}
         {baseline && (
           <Panel title="Baseline Model">
@@ -105,32 +109,31 @@ export function ReviewView() {
         )}
       </div>
 
-      {/* Performance Comparison */}
-      <Panel title="Per-Class Average Precision (AP)">
-        <ResponsiveContainer width="100%" height={400}>
-          <BarChart data={AP_DATA}>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-            <XAxis
-              dataKey="class"
-              angle={-45}
-              textAnchor="end"
-              height={100}
-              tick={{ fontSize: 12 }}
-            />
-            <YAxis tick={{ fontSize: 12 }} />
-            <Tooltip
-              contentStyle={{
-                backgroundColor: 'var(--card)',
-                border: '1px solid var(--border)',
-                borderRadius: '8px',
-              }}
-              labelStyle={{ color: 'var(--foreground)' }}
-            />
-            <Legend />
-            <Bar dataKey="Baseline" fill="var(--chart-3)" />
-            <Bar dataKey="Proposed" fill="var(--chart-1)" />
-          </BarChart>
-        </ResponsiveContainer>
+      <Panel title="Per-class AP — trained model">
+        <div className="flex flex-col gap-3 py-4 pr-6">
+          {AP_DATA_STATIC.map((item) => {
+            const widthPct = item.value;
+            const color = CHART_COLORS[item.name] || '#888';
+
+            return (
+              <div key={item.name} className="flex items-center gap-3">
+                <span className="w-32 text-right text-sm text-zinc-300">
+                  {item.name}
+                </span>
+                <div className="flex-1 h-5 bg-[#262626] rounded-sm relative overflow-hidden">
+                  <div
+                    className="h-full absolute left-0 top-0 rounded-sm flex items-center justify-end pr-3"
+                    style={{ width: `${widthPct}%`, backgroundColor: color }}
+                  >
+                    <span className="text-xs font-semibold text-black/40 drop-shadow-sm">
+                      {item.value}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </Panel>
 
       {/* Summary */}

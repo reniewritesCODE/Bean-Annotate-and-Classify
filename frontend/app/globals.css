@@ -5,11 +5,12 @@
 
 :root {
   /* Dark Theme - Orange/Golden Accent (Default) */
-  --background: #0F0F0F;
+  --background: #0c0b09;
+  /* --background: #1A1A1A; */
   --foreground: #E0D5C7;
-  --card: #1A1A1A;
+  --card: #141210;
   --card-foreground: #E0D5C7;
-  --popover: #1A1A1A;
+  --popover: #141210;
   --popover-foreground: #E0D5C7;
   --primary: #D4820A;
   --primary-foreground: #FFFFFF;
@@ -30,13 +31,14 @@
   --chart-4: #60A5FA;
   --chart-5: #A78BFA;
   --radius: 0.5rem;
-  --sidebar: #0C0B09;
+  /* --sidebar: #0C0B09; */
+  --sidebar: #141210;
   --sidebar-foreground: #E0D5C7;
   --sidebar-primary: #D4820A;
   --sidebar-primary-foreground: #FFFFFF;
   --sidebar-accent: #2D2D2D;
   --sidebar-accent-foreground: #A89968;
-  --sidebar-border: #1A1A1A;
+  --sidebar-border: #292929;
   --sidebar-ring: #D4820A;
 }
 
@@ -79,6 +81,31 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+}
+
+/* Custom scrollbar class */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+}
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+.custom-scrollbar::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 @layer base {

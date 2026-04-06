@@ -13,14 +13,14 @@ import { DetectView } from '@/views/Detect';
 import { useApp } from '@/context/AppContext';
 
 export default function Home() {
-  const { currentView } = useApp();
+  const { currentView } = useApp(); 
 
   const renderView = () => {
     switch (currentView) {
       case 'dashboard':
         return <Dashboard />;
       case 'upload':
-        return <UploadView />;
+        return <UploadView />;    
       case 'annotate':
         return <AnnotateView />;
       case 'train':
@@ -37,7 +37,7 @@ export default function Home() {
   };
 
   return (
-    <div className="flex h-screen bg-background">
+    <div className="flex h-screen bg-foreground">
       {/* Sidebar */}
       <Sidebar />
 
