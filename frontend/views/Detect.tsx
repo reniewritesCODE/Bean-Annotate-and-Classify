@@ -98,8 +98,8 @@ export function DetectView() {
   };
 
   return (
-    <div className="p-8 space-y-8">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <div className="p-4 space-y-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Canvas Area */}
         <div className="lg:col-span-2">
           <Panel title="Live Detection Feed">

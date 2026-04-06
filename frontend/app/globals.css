@@ -83,25 +83,29 @@
   --color-sidebar-ring: var(--sidebar-ring);
 }
 
-/* Defect classes scrollbar — webkit */
-.defect-scroll::-webkit-scrollbar {
+/* Custom scrollbar class */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+}
+.custom-scrollbar::-webkit-scrollbar {
   width: 4px;
+  height: 4px;
 }
-.defect-scroll::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 999px;
-}
-.defect-scroll::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.3);
-  border-radius: 999px;
-}
-.defect-scroll::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.5);
-}
-/* Hide native scrollbar completely on webkit */
-.defect-scroll::-webkit-scrollbar {
-  width: 0px;
+.custom-scrollbar::-webkit-scrollbar-track {
   background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+.custom-scrollbar::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 @layer base {

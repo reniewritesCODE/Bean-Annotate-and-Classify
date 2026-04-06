@@ -9,25 +9,12 @@ const dmSerif = DM_Serif_Display({ subsets: ['latin'], weight: '400', variable: 
 const dmMono = DM_Mono({ subsets: ['latin'], weight: '400', variable: '--font-dm-mono' })
 
 export const metadata: Metadata = {
-  title: 'BeanScan - Bean Defect Detection',
+  title: 'DOST-CBASS',
   description: 'Annotate and classify robusta bean defects using AI',
   generator: 'v0.app',
   icons: {
-    icon: [
-      {
-        url: '/icon-light-32x32.png',
-        media: '(prefers-color-scheme: light)',
-      },
-      {
-        url: '/icon-dark-32x32.png',
-        media: '(prefers-color-scheme: dark)',
-      },
-      {
-        url: '/icon.svg',
-        type: 'image/svg+xml',
-      },
-    ],
-    apple: '/apple-icon.png',
+    icon: '/cbass-logo.png',
+    apple: '/cbass-logo.png',
   },
 }
 

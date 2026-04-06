@@ -14,13 +14,12 @@ import {
 
 const OVERVIEW_VIEWS = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { id: 'detect', label: 'Classify', icon: Eye},
+  { id: 'detect', label: 'Detect', icon: Eye},
 ];
 
 const ML_WORKFLOW = [
-  { id: 'upload', label: 'Upload dataset', icon: Upload, step: 1 },
-  { id: 'annotate', label: 'Annotate', icon: Edit3, step: 2 },
-  { id: 'test', label: 'test', icon: Edit3, step: 2 },
+  { id: 'upload', label: 'Upload', icon: Upload, step: 1 },
+  { id: 'annotate', label: 'Annotate', icon: Edit3, step: 2 },  
   { id: 'train', label: 'Train Model', icon: Zap, step: 3 },
   { id: 'review', label: 'Model Review', icon: CheckCircle, step: 4 },
   { id: 'registry', label: 'Model Registry', icon: Database, step: 5 },
@@ -33,11 +32,11 @@ export function Sidebar() {
     <div className="w-56 bg-sidebar text-sidebar-foreground border-r border-sidebar-border h-screen flex flex-col">
       {/* Logo */}
       <div className="p-4 border-b border-sidebar-border">
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 bg-sidebar-primary rounded flex items-center justify-center">
-            <span className="text-white font-bold text-sm">B</span>
+        <div className="flex items-center gap-1">
+          <div className="w-8 h-8 flex items-center justify-center overflow-hidden">
+            <img src="/cbass-logo.png" alt="CBASS Logo" className="w-full h-full object-contain" />
           </div>
-          <h1 className="font-bold text-base">BeanScan</h1>
+          <h1 className="font-bold text-base">DOST-CBASS</h1>
         </div>
       </div>
 

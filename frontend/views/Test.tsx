@@ -6,7 +6,7 @@ import { fillBeanCanvas } from '@/lib/canvas-utils';
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { BoundingBox } from '@/lib/types';
-import { Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Trash2, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { ScrollArea } from '@radix-ui/react-scroll-area';
 
 // ─── Reusable floating panel card ─────────────────────────────────────────────
@@ -109,6 +109,10 @@ export function Test() {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !currentImage) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
     fillBeanCanvas(canvas, currentImage.seed, 0, DEFECT_CLASSES, [
       ...currentAnnotations,
       ...(tempBox ? [tempBox] : []),
@@ -147,14 +151,20 @@ export function Test() {
 
       if (
         (e.key === 'Delete' || e.key === 'Backspace') &&
-        selectedBoxId &&
         currentImage
       ) {
-        const updated = (annotations[currentImage.id] || []).filter(
-          (b) => b.id !== selectedBoxId,
-        );
-        setAnnotations({ ...annotations, [currentImage.id]: updated });
-        setSelectedBoxId(null);
+        const imageAnnotations = annotations[currentImage.id] || [];
+        if (selectedBoxId) {
+          const updated = imageAnnotations.filter(
+            (b) => b.id !== selectedBoxId,
+          );
+          setAnnotations({ ...annotations, [currentImage.id]: updated });
+          setSelectedBoxId(null);
+        } else if (imageAnnotations.length > 0) {
+          // Removes the last drawn box
+          const updated = imageAnnotations.slice(0, -1);
+          setAnnotations({ ...annotations, [currentImage.id]: updated });
+        }
         return;
       }
       if (e.key === 'Escape') setSelectedBoxId(null);
@@ -189,45 +199,73 @@ export function Test() {
     setTempBox({
       x: Math.min(startPos.x, x),
       y: Math.min(startPos.y, y),
-      width: Math.abs(x - startPos.x),
-      height: Math.abs(y - startPos.y),
-      classId: selectedClass,
+      w: Math.abs(x - startPos.x),
+      h: Math.abs(y - startPos.y),
+      cls: selectedClass,
       id: 'temp',
     });
   };
 
   const handleMouseUp = () => {
-    if (!isDrawing || !tempBox || !currentImage) {
+    if (!isDrawing || !tempBox || !currentImage) return;
+
       setIsDrawing(false);
+
+      const newBox: BoundingBox = {
+        cls: tempBox.cls,
+        x: tempBox.x,
+        y: tempBox.y,
+        w: tempBox.w,
+        h: tempBox.h,
+      };
+
+      const imageAnnotations = annotations[currentImage.id] || [];
+      setAnnotations({
+        ...annotations,
+        [currentImage.id]: [...imageAnnotations, newBox],
+      });
+
       setTempBox(null);
-      return;
-    }
-    setIsDrawing(false);
-    if (tempBox.width < 8 || tempBox.height < 8) {
-      setTempBox(null);
-      return;
-    }
-    const newBox: BoundingBox = { ...tempBox, id: `box-${Date.now()}` };
-    const existing = annotations[currentImage.id] || [];
-    setAnnotations({ ...annotations, [currentImage.id]: [...existing, newBox] });
-    setTempBox(null);
-    addToast({
-      type: 'success',
-      message: `${DEFECT_CLASSES[selectedClass - 1].name} box added`,
-    });
+      addToast(
+        `${DEFECT_CLASSES[selectedClass - 1].name} box added`,
+        'success'
+      );
   };
 
-  const handleDeleteBox = (boxId: string) => {
-    if (!currentImage) return;
-    const updated = (annotations[currentImage.id] || []).filter(
-      (b) => b.id !== boxId,
-    );
-    setAnnotations({ ...annotations, [currentImage.id]: updated });
-    if (selectedBoxId === boxId) setSelectedBoxId(null);
-  };
+  const handleDeleteBox = (boxIndex: string) => {
+      if (!currentImage) return;
+
+      const imageAnnotations = annotations[currentImage.id] || [];
+      setAnnotations({
+        ...annotations,
+        [currentImage.id]: imageAnnotations.filter((_, idx) => idx !== parseInt(boxIndex)),
+      });
+    };
 
   const handleSave = () =>
     addToast({ type: 'success', message: 'Annotations saved' });
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+      if (e.key >= '1' && e.key <= '8') {
+        const classId = parseInt(e.key);
+        if (classId <= DEFECT_CLASSES.length) {
+          setSelectedClass(classId);
+        }
+      }
+    };
+
+  const handleNextImage = () => {
+    if (currentImageIndex < images.length - 1) {
+      setCurrentImageIndex(currentImageIndex + 1);
+    }
+  };
+  
+  const handlePrevImage = () => {
+    if (currentImageIndex > 0) {
+      setCurrentImageIndex(currentImageIndex - 1);
+    }
+  };
+
 
   // ─────────────────────────────────────────────────────────────────────────────
   return (
@@ -314,23 +352,23 @@ export function Test() {
                 scrollbarColor: 'rgba(255,255,255,0.3) rgba(255,255,255,0.05)',
               }}
             >
-            <div className="px-2 space-y-1">
-              {images.length === 0 ? (
-                <p className="text-xs text-muted-foreground text-center py-4 px-2">
-                  No images. Upload some first.
-                </p>
-              ) : (
-                images.map((image, idx) => (
-                  <ImageThumbnail
-                    key={image.id}
-                    image={image}
-                    isSelected={idx === currentImageIndex}
-                    annotationCount={(annotations[image.id] || []).length}
-                    onClick={() => setCurrentImageIndex(idx)}
-                  />
-                ))
-              )}
-            </div>
+              <div className="px-2 space-y-1">
+                {images.length === 0 ? (
+                  <p className="text-xs text-muted-foreground text-center py-4 px-2">
+                    No images. Upload some first.
+                  </p>
+                ) : (
+                  images.map((image, idx) => (
+                    <ImageThumbnail
+                      key={image.id}
+                      image={image}
+                      isSelected={idx === currentImageIndex}
+                      annotationCount={(annotations[image.id] || []).length}
+                      onClick={() => setCurrentImageIndex(idx)}
+                    />
+                  ))
+                )}
+              </div>
 
             </div>
           </Panel>
@@ -343,8 +381,6 @@ export function Test() {
         <div className="flex-1 min-w-0 flex flex-col min-h-0 gap-2 ">
           
           <Panel className="flex-1 flex flex-col min-h-0">
-
-          
 
             <div className="flex-shrink-0 px-5 py-3 border-b border-border flex items-center justify-between">
               <h3 className="text-sm font-semibold text-foreground">
@@ -374,7 +410,31 @@ export function Test() {
               </div>
             </div>
 
-            <div className="flex-1 flex items-center justify-center bg-[#0F0E0C] min-h-0 p-4">
+
+            <div className="flex-1 flex flex-col items-center justify-center bg-background p-4 min-h-0 overflow-hidden">
+                      {currentImage ? (
+                        <div className="relative flex items-center justify-center w-full h-full max-w-full max-h-full">
+                          <canvas
+                            ref={canvasRef}
+                            width={640}
+                            height={480}
+                            className="border border-border rounded cursor-crosshair max-w-full max-h-full object-contain"
+                            style={{ touchAction: 'none' }}
+                            onMouseDown={handleMouseDown}
+                            onMouseMove={handleMouseMove}
+                            onMouseUp={handleMouseUp}
+                            onMouseLeave={handleMouseUp}
+                            onKeyDown={handleKeyPress}
+                          />
+                        </div>
+                      ) : (
+                        <div className="text-muted-foreground text-center">
+                          <p>No images available</p>
+                          <p className="text-sm">Upload images to start annotating</p>
+                        </div>
+                      )} 
+
+            {/* <div className="flex-1 flex items-center justify-center bg-[#0F0E0C] min-h-0 p-4">
               {currentImage ? (
                 <canvas
                   ref={canvasRef}
@@ -393,7 +453,9 @@ export function Test() {
                   <p className="text-xs mt-1">Go to Upload to add images</p>
                 </div>
               )}
-            </div>
+            </div> */}
+
+          </div>
 
           </Panel>
 
@@ -442,39 +504,28 @@ export function Test() {
                   Draw boxes on the canvas.
                 </p>
               ) : (
-                <div className="space-y-2">
-                  {currentAnnotations.map((ann) => {
-                    const cls = DEFECT_CLASSES[ann.classId - 1];
-                    if (!cls) return null;
-                    const isSel = selectedBoxId === ann.id;
+                <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
+                  {currentAnnotations.map((annotation, idx) => {
+                    const defectClass = DEFECT_CLASSES.find(c => c.id === annotation.cls);
+                    if (!defectClass) return null;
                     return (
                       <div
-                        key={ann.id}
-                        onClick={() =>
-                          setSelectedBoxId(isSel ? null : ann.id)
-                        }
-                        className={`flex items-center gap-2 px-3 py-2.5 rounded-lg cursor-pointer border transition-all ${
-                          isSel
-                            ? 'border-[#B87A0E] bg-[#B87A0E]/10'
-                            : 'border-transparent bg-secondary hover:bg-secondary/60'
-                        }`}
+                        key={idx}
+                        className="flex items-center gap-2 p-2 hover:bg-secondary rounded transition-colors group"
                       >
-                        <span
-                          className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                          style={{ backgroundColor: cls.color }}
+                        <div
+                          className="w-2 h-2 rounded-full flex-shrink-0"
+                          style={{ backgroundColor: defectClass.color }}
                         />
-                        <span className="flex-1 text-xs font-medium text-foreground truncate">
-                          {cls.name}
+                        <span className="flex-1 text-xs text-foreground font-medium truncate">
+                          {defectClass.name}
                         </span>
                         <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteBox(ann.id);
-                          }}
-                          className="p-0.5 rounded hover:bg-[#FCEBEB] transition-colors flex-shrink-0 group"
-                          aria-label="Delete annotation"
+                          onClick={() => handleDeleteBox(idx.toString())}
+                          className="p-0.5 hover:bg-primary/20 rounded opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                          title="Delete"
                         >
-                          <Trash2 className="w-3.5 h-3.5 text-muted-foreground group-hover:text-[#791F1F]" />
+                          <X className="w-3.5 h-3.5 text-foreground" />
                         </button>
                       </div>
                     );
@@ -483,18 +534,15 @@ export function Test() {
               )}
             </div>
 
-            {/* Pinned bottom actions */}
-            <div className="flex-shrink-0 p-3 pt-2 border-t border-border space-y-2">
-              <Button
-                onClick={handleSave}
-                className="w-full bg-[#B87A0E] hover:bg-[#9A6509] text-white font-semibold"
-              >
-                Save annotations
-              </Button>
-              <button className="w-full text-center text-sm text-muted-foreground hover:text-foreground transition-colors py-1">
-                Proceed to Train →
-              </button>
-            </div>
+            {/* Bottom Action Buttons */}
+          <div className="p-4 border-t border-border space-y-2">
+            <button   className="w-full py-2 px-3 bg-primary text-white text-sm font-semibold rounded hover:bg-primary/90 transition-colors">
+              Save annotations
+            </button>
+            <button className="w-full py-2 px-3 bg-secondary text-foreground text-sm font-semibold rounded hover:bg-secondary/80 transition-colors">
+              Proceed to Train →
+            </button>
+          </div>
 
           </Panel>
         </div>

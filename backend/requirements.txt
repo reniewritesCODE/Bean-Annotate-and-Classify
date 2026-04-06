@@ -13,3 +13,4 @@ redis
 pydantic[email]
 python-jose[cryptography]
 bcrypt
+passlib[bcrypt]

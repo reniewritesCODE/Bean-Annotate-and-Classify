@@ -69,16 +69,27 @@ export function fillBeanCanvas(
   ctx.fillStyle = '#F5F1EB';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  const beanSize = 20;
-  const cols = Math.floor(canvas.width / (beanSize * 3));
-  const rows = Math.floor(canvas.height / (beanSize * 3));
+  // Use dynamic sizing relative to canvas width
+  const isThumb = canvas.width < 100;
+  const padding = isThumb ? 2 : 30;
+  const targetCellSize = isThumb ? 10 : 60;
+
+  const usableWidth = canvas.width - padding * 2;
+  const usableHeight = canvas.height - padding * 2;
+
+  const cols = Math.max(1, Math.floor(usableWidth / targetCellSize));
+  const rows = Math.max(1, Math.floor(usableHeight / targetCellSize));
+
+  const cellW = usableWidth / cols;
+  const cellH = usableHeight / rows;
+  const beanSize = Math.min(cellW, cellH) / 3;
 
   // Draw grid of beans
   let beanIndex = 0;
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
-      const x = c * (beanSize * 3) + beanSize * 1.5;
-      const y = r * (beanSize * 3) + beanSize * 1.5;
+      const x = padding + c * cellW + cellW / 2;
+      const y = padding + r * cellH + cellH / 2;
       const beanSeed = seed + beanIndex;
       drawBean(ctx, x, y, beanSize, beanSeed);
       beanIndex++;
@@ -90,16 +101,50 @@ export function fillBeanCanvas(
     boundingBoxes.forEach((box) => {
       const defectClass = defectClasses.find((c) => c.id === box.cls);
       if (defectClass) {
+        // Set line style (dashed for temporary box, solid for confirmed)
+        if (box.id === 'temp') {
+          ctx.setLineDash([5, 5]);
+        } else {
+          ctx.setLineDash([]);
+        }
+
         ctx.strokeStyle = defectClass.color;
         ctx.lineWidth = 2;
         ctx.strokeRect(box.x, box.y, box.w, box.h);
 
-        // Draw class label
+        // Semi-transparent fill inside the bounding box
+        ctx.fillStyle = defectClass.color + '33'; // 20% opacity
+        ctx.fillRect(box.x, box.y, box.w, box.h);
+
+        // Reset line dash back to default before drawing text structures to be safe
+        ctx.setLineDash([]);
+
+        // Ensure text baseline is consistent
+        ctx.textBaseline = 'top';
+        ctx.font = '500 12px "Inter", "Segoe UI", Arial, sans-serif';
+        
+        // Measure text for label width
+        const labelText = defectClass.name;
+        const textWidth = ctx.measureText(labelText).width;
+        // Simple padding configuration
+        const paddingX = 6;
+        const paddingY = 4;
+        
+        const labelW = textWidth + paddingX * 2;
+        const labelH = 12 + paddingY * 2;
+
+        // Draw label background
+        // Keep the tab exactly connected to the top side of the bounding box
+        // Prevent top overflow if box is too close to top bound
+        const labelY = box.y > labelH ? box.y - labelH : box.y; 
+        
         ctx.fillStyle = defectClass.color;
-        ctx.fillRect(box.x, box.y - 18, 80, 16);
-        ctx.fillStyle = 'white';
-        ctx.font = '12px Arial';
-        ctx.fillText(defectClass.name, box.x + 2, box.y - 5);
+        ctx.fillRect(box.x, labelY, labelW, labelH);
+
+        // Draw label text (Dark color for high contrast as per expected design)
+        ctx.fillStyle = '#0F0E0C'; 
+        // +1 padding is an optical adjustment for baseline=top layout
+        ctx.fillText(labelText, box.x + paddingX, labelY + paddingY);
       }
     });
   }
