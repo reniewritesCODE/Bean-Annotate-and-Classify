@@ -1,6 +1,6 @@
-﻿# backend/app/models.py
-from sqlalchemy import Column, String, Float, Boolean, Integer, Enum, DateTime, ForeignKey, JSON
+﻿﻿from sqlalchemy import Column, String, Boolean, Float, DateTime, Integer, Text, ForeignKey, Enum, JSON
 from sqlalchemy.orm import relationship
+from sqlalchemy.dialects.postgresql import UUID
 from app.database import Base
 import uuid
 from datetime import datetime
