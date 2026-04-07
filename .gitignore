@@ -47,7 +47,7 @@ frontend/.env.*.local
 
 # Docker
 infra/.env
-*.dockerignore
+
 
 # IDE / Editor
 .vscode/

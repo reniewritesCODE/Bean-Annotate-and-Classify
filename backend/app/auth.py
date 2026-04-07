@@ -1,70 +1,69 @@
-# backend/app/auth.py
-from datetime import datetime, timedelta
-from typing import Optional
-from jose import JWTError, jwt
 from passlib.context import CryptContext
+from jose import JWTError, jwt
+from datetime import datetime, timedelta, timezone
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from pydantic import BaseModel
-import os
+from app.config import settings
 
-SECRET_KEY = os.getenv("SECRET_KEY", "your-super-secret-key-change-in-production")
+SECRET_KEY = settings.SECRET_KEY
+ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
+REFRESH_TOKEN_EXPIRE_DAYS = settings.REFRESH_TOKEN_EXPIRE_DAYS
+
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")       # Initializes bcrypt for secure password hashing
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")        # FastAPI's OAuth2 helper that automatically extracts bearer token from Authorization header in requests.
 
-class Token(BaseModel):
-    access_token: str
-    token_type: str
-
-class TokenData(BaseModel):
-    username: Optional[str] = None
-    role: Optional[str] = None
-
-class User(BaseModel):
-    id: str
-    username: str
-    email: str
-    role: str  # "admin" | "annotator" | "trainer"
-
-def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
-
-def get_password_hash(password):
+# Takes plain text password, returns bcrypt hash. Used when users register or change their password.
+def hash_password(password: str) -> str:
     return pwd_context.hash(password)
 
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
+# Compares plain text password against stored hash. Used during login to verify credentials.
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    return pwd_context.verify(plain_password, hashed_password)
+
+# Creates a short-lived JWT access token. Include user info in data dict. Used for authenticating API requests.
+def create_access_token(data: dict) -> str:
     to_encode = data.copy()
-    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=15))
-    to_encode.update({"exp": expire})
-    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-
-async def get_current_user(token: str = Depends(oauth2_scheme)):
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
+    to_encode["exp"] = datetime.now(timezone.utc) + timedelta(
+        minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
     )
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
-        role: str = payload.get("role")
-        if username is None or role is None:
-            raise credentials_exception
-        token_data = TokenData(username=username, role=role)
-    except JWTError:
-        raise credentials_exception
-    return token_data
+    to_encode["type"] = "access"
+    token = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=ALGORITHM)
+    return token if isinstance(token, str) else token.decode("utf-8")
 
-# Role guard decorator
-def require_role(required_role: str):
-    def role_checker(current_user: TokenData = Depends(get_current_user)):
-        if current_user.role != required_role and current_user.role != "admin":
+# Creates a long-lived JWT refresh token. Include user info in data dict. Used for obtaining new access tokens.
+def create_refresh_token(data: dict) -> str:
+    to_encode = data.copy()
+    to_encode["exp"] = datetime.now(timezone.utc) + timedelta(
+        days=settings.REFRESH_TOKEN_EXPIRE_DAYS
+    )
+    to_encode["type"] = "refresh"
+    token = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=ALGORITHM)
+    return token if isinstance(token, str) else token.decode("utf-8")
+
+# Decodes and validates JWT. Returns the payload (data inside token) or raises 401 error if token is invalid/expired. Used in get_current_user dependency to authenticate requests.
+def decode_access_token(token: str) -> dict:
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[ALGORITHM])
+        return payload
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+# Dependency function that can be added to any route to require authentication. It extracts the token from the request, decodes it, and returns the user info from the token payload. If the token is invalid or expired, it raises a 401 error.
+def get_current_user(token: str = Depends(oauth2_scheme)):
+    payload = decode_access_token(token)  # already raises 401 if invalid
+    if payload.get("type") != "access":
+        raise HTTPException(status_code=401, detail="Access token required")
+    return payload
+
+def require_roles(*allowed_roles):
+    def checker(current_user: dict = Depends(get_current_user)):
+        role = current_user.get("role")
+        if role not in allowed_roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Role '{required_role}' required"
+                detail=f"Role '{role}' is not allowed to access this resource"
             )
         return current_user
-    return role_checker
+    return checker
