@@ -45,8 +45,8 @@ export function ReviewView() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Baseline */}
         {baseline && (
-          <Panel title="Baseline Model">
-            <div className="space-y-4">
+          <Panel title="Baseline Model" className='font-headline'>
+            <div className="space-y-4 font-sans">
               <div className="text-center p-4 bg-muted rounded-lg">
                 <h4 className="font-serif text-lg font-bold">{baseline.name}</h4>
                 <p className="text-sm text-muted-foreground mt-1">
@@ -68,8 +68,8 @@ export function ReviewView() {
 
         {/* Proposed */}
         {proposed && (
-          <Panel title="Proposed Model">
-            <div className="space-y-4">
+          <Panel title="Proposed Model" className='font-headline'> 
+            <div className="space-y-4 font-sans">
               <div className="text-center p-4 bg-primary/10 rounded-lg border border-primary/50">
                 <h4 className="font-serif text-lg font-bold text-primary">
                   {proposed.name}
@@ -109,8 +109,8 @@ export function ReviewView() {
         )}
       </div>
 
-      <Panel title="Per-class AP — trained model">
-        <div className="flex flex-col gap-3 py-4 pr-6">
+      <Panel title="Per-class AP — trained model" className='font-headline'>
+        <div className="flex flex-col gap-3 py-4 pr-6 font-sans">
           {AP_DATA_STATIC.map((item) => {
             const widthPct = item.value;
             const color = CHART_COLORS[item.name] || '#888';
@@ -137,8 +137,8 @@ export function ReviewView() {
       </Panel>
 
       {/* Summary */}
-      <Panel title="Review Summary">
-        <div className="space-y-3 text-sm">
+      <Panel title="Review Summary" className='font-headline'>
+        <div className="space-y-3 text-sm font-sans">
           {proposed && baseline && (
             <>
               <div className="flex justify-between items-center pb-2 border-b border-border">

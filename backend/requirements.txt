@@ -12,5 +12,5 @@ celery[redis]
 redis
 pydantic[email]
 python-jose[cryptography]
-bcrypt
+bcrypt<4.0.0
 passlib[bcrypt]

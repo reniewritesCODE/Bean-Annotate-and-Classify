@@ -281,13 +281,13 @@ export function AnnotateView() {
             ════════════════════════════════ */}
         <div className="w-52 flex-shrink-0 flex flex-col gap-4 min-h-0">
           {/* Panel A — Defect classes */}
-          <Panel className='flex flex-col h-full'>
-            <div className="px-4 pt-4 pb-2 shrink-0">
+          <Panel className='flex flex-col h-full '>
+            <div className="px-4 pt-4 pb-2 shrink-0 font-headline">
               <h3 className="text-sm font-semibold text-foreground">
                 Defect classes
               </h3>
             </div>
-            <div className="custom-scrollbar pl-3 pb-3 flex-1 min-h-0 overflow-y-auto">
+            <div className="custom-scrollbar pl-3 pb-3 flex-1 min-h-0 overflow-y-auto font-sans">
               <div ref={scrollContainerRef} className='pr-2 space-y-1'>
                  {DEFECT_CLASSES.map((cls, idx) => {
                     const classId = idx + 1;
@@ -335,7 +335,7 @@ export function AnnotateView() {
           {/* Panel B — Image queue */}
           <Panel className='flex flex-col h-full'>
             <div className="px-4 pt-4 pb-2 shrink-0">
-              <h3 className="text-sm font-semibold text-foreground">
+              <h3 className="text-sm font-semibold text-foreground font-headline">
                 Image queue
               </h3>
             </div>
@@ -371,7 +371,7 @@ export function AnnotateView() {
           <Panel className="flex-1 flex flex-col min-h-0">
 
             <div className="flex-shrink-0 px-5 py-3 border-b border-border flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-foreground">
+              <h3 className="text-sm font-semibold text-foreground font-headline">
                 {currentImage?.name ?? 'No image selected'}
               </h3>
               <div className="flex items-center gap-1">
@@ -477,7 +477,7 @@ export function AnnotateView() {
 
 
             {/* Annotations header */}
-            <div className="flex-shrink-0 px-4 py-3 border-b border-border">
+            <div className="flex-shrink-0 px-4 py-3 border-b border-border font-headline">
               <h3 className="text-sm font-semibold text-foreground">
                 Annotations ({currentAnnotations.length})
               </h3>

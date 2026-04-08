@@ -55,7 +55,7 @@ export function Dashboard() {
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 flex-1 min-h-0">
-        <Panel title="Class distribution" className="flex flex-col h-full overflow-hidden">
+        <Panel title="Class distribution" className="flex flex-col h-full overflow-hidden font-headline">
           <div className="flex flex-col gap-1.5 py-1 pr-4 flex-1 overflow-y-auto min-h-0 custom-scrollbar">
             {CLASS_DISTRIBUTION.map((item) => {
               // Calculate percentage based on max value (38)
@@ -64,7 +64,7 @@ export function Dashboard() {
               const color = CHART_COLORS[item.name] || '#888';
 
               return (
-                <div key={item.name} className="flex items-center gap-2">
+                <div key={item.name} className="flex items-center gap-2 font-sans">
                   <span className="w-36 text-right text-xs text-zinc-300 truncate" title={item.name}>
                     {item.name}
                   </span>
@@ -85,8 +85,8 @@ export function Dashboard() {
         </Panel>
 
         {/* Activity Log */}
-        <Panel title="Recent Activity" className="flex flex-col h-full overflow-hidden">
-          <div className="space-y-3 flex-1 overflow-y-auto min-h-0 pr-4 custom-scrollbar">
+        <Panel title="Recent Activity" className="flex flex-col h-full overflow-hidden font-headline">
+          <div className="space-y-3 flex-1 overflow-y-auto min-h-0 pr-4 custom-scrollbar font-sans">
             {ACTIVITY_LOGS.map((log) => (
               <div
                 key={log.id}

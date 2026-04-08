@@ -10,10 +10,34 @@ import { TrainView } from '@/views/Train';
 import { ReviewView } from '@/views/Review';
 import { RegistryView } from '@/views/Registry';
 import { DetectView } from '@/views/Detect';
+import { UsersView } from '@/views/Users';
 import { useApp } from '@/context/AppContext';
+import { useAuth } from '@/context/AuthContext';
+import { LoginView } from '@/views/Login';
+import { RegisterView } from '@/views/Register';
+import { Loader2 } from 'lucide-react';
+import { useState } from 'react';
 
 export default function Home() {
   const { currentView } = useApp(); 
+  const { isAuthenticated, isLoading } = useAuth();
+  const [showRegister, setShowRegister] = useState(false);
+
+  if (isLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-foreground">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return showRegister ? (
+      <RegisterView onBackToLogin={() => setShowRegister(false)} />
+    ) : (
+      <LoginView onRegisterClick={() => setShowRegister(true)} />
+    );
+  }
 
   const renderView = () => {
     switch (currentView) {
@@ -31,6 +55,8 @@ export default function Home() {
         return <RegistryView />;
       case 'detect':
         return <DetectView />;
+      case 'users':
+        return <UsersView />;
       default:
         return <Dashboard />;
     }

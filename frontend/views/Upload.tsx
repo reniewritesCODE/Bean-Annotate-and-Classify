@@ -32,8 +32,8 @@ export function UploadView() {
   return (
     <div className="p-4 space-y-4">
       {/* Upload Area */} 
-      <Panel title="Upload New Images">
-        <div className="border-2 border-dashed border-border rounded-lg p-12 text-center hover:border-primary/50 transition-colors cursor-pointer">
+      <Panel title="Upload New Images" className='font-headline'>
+        <div className="border-2 border-dashed border-border rounded-lg p-12 text-center hover:border-primary/50 transition-colors cursor-pointer font-sans">
           <Upload className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
           <p className="text-lg font-medium text-foreground mb-2">
             Drag and drop images here
@@ -51,8 +51,8 @@ export function UploadView() {
       </Panel>
 
       {/* Image Grid */}
-      <Panel title="Uploaded Images">
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6   gap-4">
+      <Panel title="Uploaded Images" className='font-headline'>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6   gap-4 font-sans">
           {images.map((img) => (
             <div
               key={img.id}

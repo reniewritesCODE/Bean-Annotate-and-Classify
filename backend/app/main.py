@@ -22,4 +22,4 @@ async def health_check():
         "message": "BeanScan API is running (minimal version)"
     }
 
-print("✅ Minimal FastAPI app started successfully")
+print("Minimal FastAPI app started successfully")

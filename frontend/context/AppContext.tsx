@@ -12,7 +12,8 @@ type ViewType =
   | 'train'
   | 'review'
   | 'registry'
-  | 'detect';
+  | 'detect'
+  | 'users';
 
 interface ToastMessage {
   id: string;

@@ -81,7 +81,7 @@ export function TopBar() {
 
   return (
     <div className="p-4 bg-background border-b border-border px-6 flex items-center justify-between">
-      <h2 className="text-base font-bold text-foreground">
+      <h2 className="text-base font-headline font-bold text-foreground">
         {title}
       </h2>
       {getActionButton()}
