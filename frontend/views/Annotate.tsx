@@ -2,7 +2,7 @@
 
 import { useApp } from '@/context/AppContext';
 import { DEFECT_CLASSES } from '@/lib/constants';
-import { fillBeanCanvas } from '@/lib/canvas-utils';
+import { drawCanvasImageAndBoxes, getImageFromCache } from '@/lib/canvas-utils';
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { BoundingBox } from '@/lib/types';
@@ -33,18 +33,11 @@ function ImageThumbnail({
   annotationCount,
   onClick,
 }: {
-  image: { id: string; name: string; seed: number };
+  image: any;
   isSelected: boolean;
   annotationCount: number;
   onClick: () => void;
 }) {
-  const thumbRef = useRef<HTMLCanvasElement>(null);
-
-  useEffect(() => {
-    const canvas = thumbRef.current;
-    if (!canvas) return;
-    fillBeanCanvas(canvas, image.seed, 0, DEFECT_CLASSES, []);
-  }, [image.seed]);
 
   return (
     <button
@@ -55,11 +48,15 @@ function ImageThumbnail({
           : 'border-transparent hover:border-border'
       }`}
     >
-      <div className="w-10 h-10 rounded-md overflow-hidden flex-shrink-0 bg-[#1A1208]">
-        <canvas ref={thumbRef} width={40} height={40} className="w-full h-full" />
+      <div className="w-10 h-10 rounded-md overflow-hidden flex-shrink-0 bg-muted">
+        <img 
+          src={image.url || `https://placehold.co/40x40?text=Img`} 
+          alt={image.name || `Image-${image.id?.toString().slice(-4)}`} 
+          className="w-full h-full object-cover" 
+        />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-xs font-semibold text-foreground truncate">{image.name}</p>
+        <p className="text-xs font-semibold text-foreground truncate">{image.name || `Image-${image.id?.toString().slice(-4)}`}</p>
         <p className="text-xs text-muted-foreground">
           {annotationCount} box{annotationCount !== 1 ? 'es' : ''}
         </p>
@@ -110,13 +107,12 @@ export function AnnotateView() {
     const canvas = canvasRef.current;
     if (!canvas || !currentImage) return;
 
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    fillBeanCanvas(canvas, currentImage.seed, 0, DEFECT_CLASSES, [
-      ...currentAnnotations,
-      ...(tempBox ? [tempBox] : []),
-    ]);
+    drawCanvasImageAndBoxes(
+      canvas,
+      currentImage.url,
+      DEFECT_CLASSES,
+      [...currentAnnotations, ...(tempBox ? [tempBox] : [])]
+    );
   }, [currentImage, currentAnnotations, tempBox]);
 
   useEffect(() => {
@@ -242,8 +238,80 @@ export function AnnotateView() {
       });
     };
 
-  const handleSave = () =>
-    addToast({ type: 'success', message: 'Annotations saved' });
+  const handleSave = async () => {
+    if (!currentImage) return;
+
+    // Convert to DB payload
+    const token = localStorage.getItem('access_token');
+    
+    // Grab the cached image element to find its natural dimensions
+    const imgElement = getImageFromCache(currentImage.url);
+    if (!imgElement) {
+        addToast('Please wait for image to load fully before saving', 'error');
+        return;
+    }
+
+    // Mathematical translation from 640x480 container coordinates (with object-fit:contain letterboxing) 
+    // to raw YOLO relative coordinates (0-1) across the true unpadded image.
+    const canvasWidth = 640;
+    const canvasHeight = 480;
+    const imgRatio = imgElement.naturalWidth / imgElement.naturalHeight;
+    const canvasRatio = canvasWidth / canvasHeight;
+    
+    let drawW = canvasWidth;
+    let drawH = canvasHeight;
+    let drawX = 0;
+    let drawY = 0;
+
+    if (imgRatio > canvasRatio) {
+      drawH = canvasWidth / imgRatio;
+      drawY = (canvasHeight - drawH) / 2;
+    } else {
+      drawW = canvasHeight * imgRatio;
+      drawX = (canvasWidth - drawW) / 2;
+    }
+
+    const payload = currentAnnotations.map(box => {
+       // Convert canvas box to normalized image relative coordinates
+       const xCenterCanvas = box.x + box.w / 2;
+       const yCenterCanvas = box.y + box.h / 2;
+
+       // Normalized relative to the actual image pixels
+       const x_center = (xCenterCanvas - drawX) / drawW;
+       const y_center = (yCenterCanvas - drawY) / drawH;
+       const width = box.w / drawW;
+       const height = box.h / drawH;
+       
+       // Handle edge case of drawing outside letterbox
+       return {
+         image_id: currentImage.id,
+         class_id: box.cls,
+         x_center: Math.max(0, Math.min(1, x_center)),
+         y_center: Math.max(0, Math.min(1, y_center)),
+         width: Math.max(0.001, Math.min(1, width)),
+         height: Math.max(0.001, Math.min(1, height)),
+         source: 'human'
+       };
+    });
+
+    try {
+      const res = await fetch(`/api/annotations/${currentImage.id}`, {
+         method: 'POST',
+         headers: {
+           'Content-Type': 'application/json',
+           'Authorization': `Bearer ${token}`
+         },
+         body: JSON.stringify(payload)
+      });
+      if (res.ok) {
+        addToast('Annotations saved', 'success');
+      } else {
+        addToast('Failed to save annotations', 'error');
+      }
+    } catch {
+       addToast('Network error saving annotations', 'error');
+    }
+  };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
       if (e.key >= '1' && e.key <= '8') {
@@ -372,7 +440,7 @@ export function AnnotateView() {
 
             <div className="flex-shrink-0 px-5 py-3 border-b border-border flex items-center justify-between">
               <h3 className="text-sm font-semibold text-foreground font-headline">
-                {currentImage?.name ?? 'No image selected'}
+                {currentImage?.name || (currentImage?.id ? `Image-${currentImage.id.toString().slice(-4)}` : 'No image selected')}
               </h3>
               <div className="flex items-center gap-1">
                 <button
@@ -524,7 +592,7 @@ export function AnnotateView() {
 
             {/* Bottom Action Buttons */}
           <div className="p-4 border-t border-border space-y-2">
-            <button   className="w-full py-2 px-3 bg-primary text-white text-sm font-semibold rounded hover:bg-primary/90 transition-colors">
+            <button onClick={handleSave} className="w-full py-2 px-3 bg-primary text-white text-sm font-semibold rounded hover:bg-primary/90 transition-colors">
               Save annotations
             </button>
             <button className="w-full py-2 px-3 bg-secondary text-foreground text-sm font-semibold rounded hover:bg-secondary/80 transition-colors">

@@ -9,10 +9,10 @@ load_dotenv(os.path.join(os.path.dirname(__file__), '../../.env'))
 load_dotenv() 
 
 DATABASE_URL = os.getenv('DATABASE_URL')
-if not DATABASE_URL or "postgres:5432" in DATABASE_URL:
-    # If not provided, or looks like internal docker hostname but running from host
+if not DATABASE_URL:
+    # Default fallback for local development if not in environment
     DATABASE_URL = "postgresql://beanscan:beanscanpw@localhost:5432/beanscan"
-    print(f"Info: Using Local Database URL: {DATABASE_URL}")
+    print(f"Info: Using default local Database URL: {DATABASE_URL}")
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

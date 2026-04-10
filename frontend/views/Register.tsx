@@ -118,13 +118,13 @@ export function RegisterView({ onBackToLogin }: RegisterViewProps) {
         <section className="relative z-10 w-full md:w-1/2 flex items-center justify-center p-6 lg:p-12 pt-28">
           <div className="w-full max-w-md">
             
-            <button 
+            {/* <button 
               onClick={onBackToLogin}
               className="flex items-center gap-2 text-zinc-500 hover:text-zinc-200 transition-colors mb-8 group"
             >
               <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
               <span className="text-sm font-medium">Back to Login</span>
-            </button>
+            </button> */}
 
             <div className="mb-8">
               <div className="flex items-center gap-3 mb-4">

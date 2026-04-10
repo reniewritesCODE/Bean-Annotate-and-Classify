@@ -3,6 +3,7 @@
 import { StatCard, Panel } from '@/components/panels';
 import { ACTIVITY_LOGS, CLASS_DISTRIBUTION } from '@/lib/constants';
 import { FileImage, CheckCircle, Database } from 'lucide-react';
+import { useApp } from '@/context/AppContext';
 
 const CHART_COLORS: Record<string, string> = {
   'Full Black': '#ef4444',
@@ -24,32 +25,37 @@ const CHART_COLORS: Record<string, string> = {
 };
 
 export function Dashboard() {
+  const { images } = useApp();
+  
+  const totalImages = images.length;
+  const annotatedImages = images.filter((img: any) => img.status === 'done').length;
+
   return (
     <div className="p-4 flex flex-col space-y-4 h-[calc(100vh-4rem)] overflow-hidden">
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <StatCard
           label="Total Images"
-          value={5}
-          subtext="2 annotated"
+          value={totalImages}
+          subtext={`${annotatedImages} annotated`}
           icon={<FileImage className="w-6 h-6" />}
         />
         <StatCard
           label="Annotations"
-          value={19}
-          subtext="8 defects avg"
+          value={0}
+          subtext="0 defects avg"
           icon={<CheckCircle className="w-6 h-6" />}
         />
         <StatCard
           label="Models Trained"
-          value={4}
-          subtext="1 in registry"
+          value={0}
+          subtext="None in registry"
           icon={<Database className="w-6 h-6" />}
         />
         <StatCard
           label="Best mAP@50"
-          value={0.912}
-          subtext="YOLOv8-large"
+          value={0.00}
+          subtext="No model yet"
         />
       </div>
 
@@ -59,7 +65,7 @@ export function Dashboard() {
           <div className="flex flex-col gap-1.5 py-1 pr-4 flex-1 overflow-y-auto min-h-0 custom-scrollbar">
             {CLASS_DISTRIBUTION.map((item) => {
               // Calculate percentage based on max value (38)
-              const maxVal = Math.max(...CLASS_DISTRIBUTION.map((d) => d.value));
+              const maxVal = Math.max(...CLASS_DISTRIBUTION.map((d: any) => d.value));
               const widthPct = (item.value / maxVal) * 100;
               const color = CHART_COLORS[item.name] || '#888';
 

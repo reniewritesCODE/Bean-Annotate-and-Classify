@@ -287,7 +287,7 @@ export function TrainView() {
               </LineChart>
             </ResponsiveContainer>
           </Panel>
-
+                  
           {/* Training Log */}
           <Panel title="Training Log" className='font-headline'>
             <div className="h-[100px] overflow-y-auto bg-[#0a0a0a] border border-border/50 rounded-md p-4 flex flex-col gap-1 font-sans">

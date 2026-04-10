@@ -1,7 +1,6 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { useApp } from './AppContext';
 
 export interface User {
   username: string;
@@ -24,7 +23,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const { addToast } = useApp();
 
   useEffect(() => {
     // Check local storage for token on initial load
@@ -58,8 +56,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(null);
     setUser(null);
     setIsAuthenticated(false);
-    addToast('Logged out successfully', 'info');
-  }, [addToast]);
+  }, []);
 
   const value = {
     isAuthenticated,

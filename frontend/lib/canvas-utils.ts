@@ -136,6 +136,7 @@ export function fillBeanCanvas(
         // Draw label background
         // Keep the tab exactly connected to the top side of the bounding box
         // Prevent top overflow if box is too close to top bound
+        // Check if label overflows left or right? Simple box logic for now.
         const labelY = box.y > labelH ? box.y - labelH : box.y; 
         
         ctx.fillStyle = defectClass.color;
@@ -148,6 +149,112 @@ export function fillBeanCanvas(
       }
     });
   }
+}
+
+export function drawBoxes(
+  ctx: CanvasRenderingContext2D,
+  defectClasses: DefectClass[],
+  boundingBoxes: BoundingBox[]
+) {
+  if (!boundingBoxes || boundingBoxes.length === 0) return;
+  boundingBoxes.forEach((box) => {
+    const defectClass = defectClasses.find((c) => c.id === box.cls);
+    if (!defectClass) return;
+
+    if (box.id === 'temp') {
+      ctx.setLineDash([5, 5]);
+    } else {
+      ctx.setLineDash([]);
+    }
+
+    ctx.strokeStyle = defectClass.color;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(box.x, box.y, box.w, box.h);
+
+    ctx.fillStyle = defectClass.color + '33';
+    ctx.fillRect(box.x, box.y, box.w, box.h);
+
+    ctx.setLineDash([]);
+    ctx.textBaseline = 'top';
+    ctx.font = '500 12px "Inter", "Segoe UI", Arial, sans-serif';
+    
+    const labelText = defectClass.name;
+    const paddingX = 6;
+    const paddingY = 4;
+    const textWidth = ctx.measureText(labelText).width;
+    const labelW = textWidth + paddingX * 2;
+    const labelH = 12 + paddingY * 2;
+    const labelY = box.y > labelH ? box.y - labelH : box.y;
+    
+    ctx.fillStyle = defectClass.color;
+    ctx.fillRect(box.x, labelY, labelW, labelH);
+    ctx.fillStyle = '#0F0E0C';
+    ctx.fillText(labelText, box.x + paddingX, labelY + paddingY);
+  });
+}
+
+const imageCache: Record<string, HTMLImageElement> = {};
+
+export function getImageFromCache(imageUrl: string): HTMLImageElement | null {
+  return imageCache[imageUrl] || null;
+}
+
+export function drawCanvasImageAndBoxes(
+  canvas: HTMLCanvasElement,
+  imageUrl: string | null,
+  defectClasses: DefectClass[],
+  boundingBoxes: BoundingBox[]
+) {
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  const draw = (img: HTMLImageElement | null) => {
+    // Clear background
+    ctx.fillStyle = '#0F0E0C'; // matches panel background
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    if (img) {
+      const imgRatio = img.naturalWidth / img.naturalHeight;
+      const canvasRatio = canvas.width / canvas.height;
+      
+      let drawW = canvas.width;
+      let drawH = canvas.height;
+      let drawX = 0;
+      let drawY = 0;
+
+      // object-fit: contain logic
+      if (imgRatio > canvasRatio) {
+        drawH = canvas.width / imgRatio;
+        drawY = (canvas.height - drawH) / 2;
+      } else {
+        drawW = canvas.height * imgRatio;
+        drawX = (canvas.width - drawW) / 2;
+      }
+
+      ctx.drawImage(img, drawX, drawY, drawW, drawH);
+    }
+    
+    drawBoxes(ctx, defectClasses, boundingBoxes);
+  };
+
+  if (!imageUrl) {
+    draw(null);
+    return;
+  }
+
+  // Use synchronous rendering if cached to avert blinking during mouse draw!
+  if (imageCache[imageUrl]) {
+    draw(imageCache[imageUrl]);
+    return;
+  }
+
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  img.onload = () => {
+    imageCache[imageUrl] = img;
+    draw(img);
+  };
+  img.src = imageUrl;
 }
 
 export function drawDetectionBox(

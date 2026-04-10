@@ -29,11 +29,11 @@ export default function RootLayout({
   return (
     <html lang="en" className={`dark ${dmSans.variable} ${dmSerif.variable} ${dmMono.variable} ${spaceGrotesk.variable} ${inter.variable}`}>
       <body className="font-sans antialiased">
-        <AppProvider>
-          <AuthProvider>
+        <AuthProvider>
+          <AppProvider>
             {children}
-          </AuthProvider>
-        </AppProvider>
+          </AppProvider>
+        </AuthProvider>
         <Analytics />
       </body>
     </html>
