@@ -13,7 +13,7 @@ const VIEW_TITLES: Record<string, string> = {
   '/review': 'Review Models',
   '/registry': 'Model Registry',
   '/detect': 'Detect Objects',
-  '/test': 'Annotate Images',
+
   '/users': 'Manage Users',
 };
 
@@ -24,23 +24,7 @@ export function TopBar() {
 
   const getActionButton = () => {
     switch (pathname) {
-      case '/test':
-        return (
-          <div className='grid grid-cols-1 lg:grid-cols-2 gap-1'>
-          <Button_Variant1
-            className="bg-card border-2 hover:bg-primary/90 text-primary-foreground font-bold text-xs"
-            onClick={() => addToast('Image upload initiated', 'success')}
-          >
-            Save All
-          </Button_Variant1>
-          <Button
-            className="bg-primary hover:bg-primary/90 text-background font-bold text-xs"
-            onClick={() => addToast('Image upload initiated', 'success')}
-          >
-            Next: Train →
-          </Button>
-          </div>
-        );
+
       case '/upload':
         return (
           <Button
