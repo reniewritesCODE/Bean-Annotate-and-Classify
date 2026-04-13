@@ -96,8 +96,8 @@ export function TrainView() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-4">
         {/* Left Column: Configuration & Data Split */}
         <div className="flex flex-col gap-4">
-          <Panel title="Configuration">
-            <div className="flex flex-col text-sm px-2">
+          <Panel title="Configuration" className="font-headline">
+            <div className="flex flex-col text-sm px-2 font-sans">
               <div className="flex justify-between items-center py-2 border-b border-border/50">
                 <span className="font-medium text-foreground">Base model</span>
                 <select
@@ -216,8 +216,8 @@ export function TrainView() {
             </div>
           </Panel>
 
-          <Panel title="Dataset split">
-            <div className="flex flex-col text-sm px-2">
+          <Panel title="Dataset split" className='font-headline'>
+            <div className="flex flex-col text-sm px-2 font-sans">
               <div className="flex justify-between items-center py-3 border-b border-border/50">
                 <span className="font-medium text-foreground">Train</span>
                 <span className="text-foreground">83 images (80%)</span>
@@ -277,8 +277,8 @@ export function TrainView() {
           </div>
 
           {/* Progress Bar */}
-          <Panel title="Training Progress">
-            <div className="space-y-2">
+          <Panel title="Training Progress" className='font-headline'>
+            <div className="space-y-2 font-sans">
               <div className="flex justify-between text-sm">
                 <span className="text-foreground font-medium">
                   Progress: {trainingMetrics.length} / {config.epochs}
@@ -299,7 +299,7 @@ export function TrainView() {
           </Panel>
 
           {/* Loss Chart */}
-          <Panel title="Loss Curve">
+          <Panel title="Loss Curve" className='font-headline'>
             <ResponsiveContainer width="100%" height={250}>
               <LineChart data={trainingMetrics.length ? trainingMetrics : [{ epoch: 0, loss: 0 }]}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
@@ -323,10 +323,10 @@ export function TrainView() {
               </LineChart>
             </ResponsiveContainer>
           </Panel>
-
+                  
           {/* Training Log */}
-          <Panel title="Training Log">
-            <div className="h-[100px] overflow-y-auto bg-[#0a0a0a] border border-border/50 rounded-md p-4 flex flex-col gap-1">
+          <Panel title="Training Log" className='font-headline'>
+            <div className="h-[100px] overflow-y-auto bg-[#0a0a0a] border border-border/50 rounded-md p-4 flex flex-col gap-1 font-sans">
               {trainingMetrics.length === 0 && !isTraining && (
                 <div className="text-muted-foreground font-mono text-sm">System ready. Waiting to start training...</div>
               )}

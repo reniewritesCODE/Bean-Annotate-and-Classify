@@ -35,8 +35,8 @@ export function RegistryView() {
   return (
     <div className="p-4 space-y-4">
       {/* Sorting */}
-      <Panel title="Model Registry">
-        <div className="mb-6 flex gap-2">
+      <Panel title="Model Registry" className='font-headline'>
+        <div className="mb-6 flex gap-2 font-sans">
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value)}
@@ -49,7 +49,7 @@ export function RegistryView() {
         </div>
 
         {/* Models Table */}
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto font-sans">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border">
@@ -137,8 +137,8 @@ export function RegistryView() {
       </Panel>
 
       {/* Stats */}
-      <Panel title="Registry Statistics">
-        <div className="grid grid-cols-3 gap-4 text-sm">
+      <Panel title="Registry Statistics" className='font-headline'>
+        <div className="grid grid-cols-3 gap-4 text-sm font-sans">
           <div className="text-center">
             <p className="text-2xl font-bold text-primary">{MODELS.length}</p>
             <p className="text-muted-foreground">Total Models</p>

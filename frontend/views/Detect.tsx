@@ -102,8 +102,8 @@ export function DetectView() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Canvas Area */}
         <div className="lg:col-span-2">
-          <Panel title="Live Detection Feed">
-            <div className="space-y-4">
+          <Panel title="Live Detection Feed" className="font-headline">
+            <div className="space-y-4 font-sans">
               <div className="border border-border rounded-lg overflow-hidden bg-muted">
                 <canvas
                   ref={canvasRef}
@@ -163,8 +163,8 @@ export function DetectView() {
         {/* Stats Panel */}
         <div className="space-y-4">
           {/* Detection Stats */}
-          <Panel title="Detection Stats">
-            <div className="space-y-3">
+          <Panel title="Detection Stats" className='font-headline'>
+            <div className="space-y-3 font-sans">
               <StatCard label="Total Objects" value={detectionStats.total} />
               <div className="text-sm space-y-2">
                 <p className="font-medium text-foreground">Per-Class Count:</p>
@@ -190,8 +190,8 @@ export function DetectView() {
           </Panel>
 
           {/* Model Info */}
-          <Panel title="Model Info">
-            <div className="text-sm space-y-2">
+          <Panel title="Model Info" className='font-headline'>
+            <div className="text-sm space-y-2 font-sans">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Model:</span>
                 <span className="font-medium">YOLOv8-large</span>
@@ -212,8 +212,8 @@ export function DetectView() {
           </Panel>
 
           {/* Legend */}
-          <Panel title="Class Colors">
-            <div className="space-y-2">
+          <Panel title="Class Colors" className='font-headline'>
+            <div className="space-y-2 font-sans">
               {DEFECT_CLASSES.slice(0, 4).map((cls) => (
                 <div key={cls.id} className="flex items-center gap-2">
                   <div

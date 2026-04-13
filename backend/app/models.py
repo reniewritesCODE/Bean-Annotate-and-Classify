@@ -1,4 +1,4 @@
-﻿# backend/app/models.py
+# backend/app/models.py
 from sqlalchemy import Column, String, Float, Boolean, Integer, Enum, DateTime, ForeignKey, JSON
 from sqlalchemy.orm import relationship
 from app.database import Base
@@ -11,6 +11,18 @@ SplitType = Enum('train', 'val', 'test', name='split_type')
 ImageStatusType = Enum('none', 'partial', 'done', name='image_status')
 AnnotationSourceType = Enum('human', 'auto-label', name='annotation_source')
 JobStatusType = Enum('pending', 'running', 'done', 'failed', name='job_status')
+UserRoleType = Enum('admin', 'annotator', 'trainer', name='user_role')
+
+
+class User(Base):
+    __tablename__ = 'users'
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    username = Column(String, unique=True, nullable=False)
+    email = Column(String, unique=True, nullable=False)
+    hashed_password = Column(String, nullable=False)
+    role = Column(UserRoleType, default='annotator')
+    created_at = Column(DateTime, default=datetime.utcnow)
 
 
 class Project(Base):
