@@ -109,11 +109,24 @@ export function ProjectSettingsView() {
           <Button 
             variant="destructive" 
             className="gap-2"
-            onClick={() => {
-              if (confirm('Are you absolutely sure?')) {
-                 // Trigger delete logic (can reuse ProjectsView handleDelete if needed)
-                 // For now, redirect to ProjectsView to handle it or implement here.
-                 router.push('/');
+            onClick={async () => {
+              if (confirm('Are you absolutely sure? All datasets and images will be permanently deleted.')) {
+                const token = localStorage.getItem('access_token');
+                try {
+                  const response = await fetch(`/api/projects/${projectId}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                  });
+                  if (response.ok) {
+                    setProjects(projects.filter(p => p.id !== projectId));
+                    addToast('Project deleted successfully', 'success');
+                    router.push('/');
+                  } else {
+                    addToast('Failed to delete project', 'error');
+                  }
+                } catch {
+                  addToast('Network error while deleting project', 'error');
+                }
               }
             }}
           >
