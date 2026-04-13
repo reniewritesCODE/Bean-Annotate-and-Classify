@@ -4,6 +4,7 @@ import { useApp } from '@/context/AppContext';
 import { Panel, StatCard } from '@/components/panels';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect, useRef } from 'react';
+import { GpuCheckerCard } from "@/components/panels/GpuCard";
 import {
   LineChart,
   Line,
@@ -78,6 +79,16 @@ export function TrainView() {
     addToast('Training stopped', 'info');
   };
 
+  const [showGpuCard, setShowGpuCard] = useState(false);
+  const [isCheckingGpu, setIsCheckingGpu] = useState(false);
+  const handleCheckGpu = () => {
+    setIsCheckingGpu(true);
+    setShowGpuCard(false);
+    setTimeout(() => {
+      setIsCheckingGpu(false);
+      setShowGpuCard(true);
+    }, 1500);
+  };
   const metrics = trainingMetrics[trainingMetrics.length - 1];
 
   return (
@@ -101,6 +112,9 @@ export function TrainView() {
                 </select>
               </div>
 
+
+
+
               <div className="flex justify-between items-center py-3 border-b border-border/50">
                 <span className="font-medium text-foreground">Strategy</span>
                 <select
@@ -113,6 +127,7 @@ export function TrainView() {
                   <option>Transfer Learning</option>
                 </select>
               </div>
+              
 
               <div className="flex justify-between items-center py-3 border-b border-border/50">
                 <span className="font-medium text-foreground">Epochs</span>
@@ -177,6 +192,27 @@ export function TrainView() {
                   <option>Standard</option>
                 </select>
               </div>
+              <div className="flex justify-between items-center py-3 border-b border-border/50">
+                <button
+                  onClick={handleCheckGpu}
+                  disabled={isCheckingGpu}
+                  className="bg-[#D97706] border border-border rounded-md px-4 py-2 text-sm font-medium text-foreground hover:bg-muted/50 transition-colors disabled:opacity-60 flex items-center gap-2"
+                >
+                  {isCheckingGpu ? (
+                    <>
+                      <svg className="animate-spin w-4 h-4 text-foreground" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      Checking...
+                    </>
+                  ) : (
+                    "Check GPU Support"
+                  )}
+                </button>
+              
+            </div>
+              {showGpuCard && <GpuCheckerCard onClose={() => setShowGpuCard(false)} />}
             </div>
           </Panel>
 

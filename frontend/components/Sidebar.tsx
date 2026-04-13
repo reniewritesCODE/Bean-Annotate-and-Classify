@@ -15,27 +15,29 @@ import {
   Users as UsersIcon,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 
 const OVERVIEW_VIEWS = [
-  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { id: 'detect', label: 'Detect', icon: Eye},
+  { id: 'dashboard', path: '/', label: 'Dashboard', icon: LayoutDashboard },
+  { id: 'detect', path: '/detect', label: 'Detect', icon: Eye},
 ];
 
 const ML_WORKFLOW = [
-  { id: 'upload', label: 'Upload', icon: Upload, step: 1 },
-  { id: 'annotate', label: 'Annotate', icon: Edit3, step: 2 },  
-  { id: 'train', label: 'Train Model', icon: Zap, step: 3 },
-  { id: 'review', label: 'Model Review', icon: CheckCircle, step: 4 },
-  { id: 'registry', label: 'Model Registry', icon: Database, step: 5 },
+  { id: 'upload', path: '/upload', label: 'Upload', icon: Upload, step: 1 },
+  { id: 'annotate', path: '/annotate', label: 'Annotate', icon: Edit3, step: 2 },  
+  { id: 'train', path: '/train', label: 'Train Model', icon: Zap, step: 3 },
+  { id: 'review', path: '/review', label: 'Model Review', icon: CheckCircle, step: 4 },
+  { id: 'registry', path: '/registry', label: 'Model Registry', icon: Database, step: 5 },
 ];
 
 const ADMIN_VIEWS = [
-  { id: 'users', label: 'Manage Users', icon: UsersIcon },
+  { id: 'users', path: '/users', label: 'Manage Users', icon: UsersIcon },
 ];
 
 export function Sidebar() {
-  const { currentView, setCurrentView } = useApp();
   const { user, logout } = useAuth();
+  const pathname = usePathname();
 
   return (
     <div className="w-56 bg-sidebar text-sidebar-foreground border-r border-sidebar-border h-screen flex flex-col">
@@ -58,11 +60,11 @@ export function Sidebar() {
           </h3>
           <div className="space-y-1">
             {OVERVIEW_VIEWS.map((view: any) => (
-              <button
+              <Link
                 key={view.id}
-                onClick={() => setCurrentView(view.id)}
+                href={view.path}
                 className={`w-full flex items-center gap-3 px-3 py-2 rounded transition-colors text-sm ${
-                  currentView === view.id
+                  pathname === view.path
                     ? 'bg-sidebar-primary text-sidebar font-medium'
                     : 'text-sidebar-foreground hover:bg-sidebar-accent/30'
                 }`}
@@ -74,7 +76,7 @@ export function Sidebar() {
                     {view.badge}
                   </span>
                 )}
-              </button>
+              </Link>
             ))}
           </div>
         </div>
@@ -86,11 +88,11 @@ export function Sidebar() {
           </h3>
           <div className="space-y-1">
             {ML_WORKFLOW.map((view: any) => (
-              <button
+              <Link
                 key={view.id}
-                onClick={() => setCurrentView(view.id)}
+                href={view.path}
                 className={`w-full flex items-center gap-3 px-3 py-2 rounded transition-colors text-sm ${
-                  currentView === view.id
+                  pathname === view.path
                     ? 'bg-sidebar-primary text-sidebar font-medium'
                     : 'text-sidebar-foreground hover:bg-sidebar-accent/30'
                 }`}
@@ -99,7 +101,7 @@ export function Sidebar() {
                   {view.step}
                 </div>
                 <span className="flex-1 text-left">{view.label}</span>
-              </button>
+              </Link>
             ))}
           </div>
         </div>
@@ -112,18 +114,18 @@ export function Sidebar() {
             </h3>
             <div className="space-y-1">
               {ADMIN_VIEWS.map((view: any) => (
-                <button
+                <Link
                   key={view.id}
-                  onClick={() => setCurrentView(view.id)}
+                  href={view.path}
                   className={`w-full flex items-center gap-3 px-3 py-2 rounded transition-colors text-sm ${
-                    currentView === view.id
+                    pathname === view.path
                       ? 'bg-sidebar-primary text-sidebar font-medium'
                       : 'text-sidebar-foreground hover:bg-sidebar-accent/30'
                   }`}
                 >
                   <view.icon className="w-4 h-4 flex-shrink-0" />
                   <span className="flex-1 text-left">{view.label}</span>
-                </button>
+                </Link>
               ))}
             </div>
           </div>

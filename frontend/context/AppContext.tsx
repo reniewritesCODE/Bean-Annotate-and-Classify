@@ -4,17 +4,6 @@ import React, { createContext, useContext, useState, useCallback, useEffect } fr
 import { ImageData, BoundingBox, TrainingMetrics } from '@/lib/types';
 import { useAuth } from '@/context/AuthContext';
 
-type ViewType =
-  | 'dashboard'
-  | 'upload'
-  | 'annotate'
-  | 'test'
-  | 'train'
-  | 'review'
-  | 'registry'
-  | 'detect'
-  | 'users';
-
 interface ToastMessage {
   id: string;
   message: string;
@@ -22,8 +11,6 @@ interface ToastMessage {
 }
 
 interface AppContextType {
-  currentView: ViewType;
-  setCurrentView: (view: ViewType) => void;
   images: ImageData[];
   setImages: (images: ImageData[]) => void;
   annotations: Record<string, BoundingBox[]>;
@@ -47,7 +34,6 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
-  const [currentView, setCurrentView] = useState<ViewType>('dashboard');
   const [images, setImages] = useState<ImageData[]>([]);
   const [projects, setProjects] = useState<any[]>([]);
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
@@ -186,8 +172,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const value: AppContextType = {
-    currentView,
-    setCurrentView,
     images,
     setImages,
     annotations,

@@ -3,42 +3,29 @@
 import { useApp } from '@/context/AppContext';
 import { Button } from '@/components/ui/button';
 import { Button_Variant1 } from './ui/button_variant1';
+import { usePathname } from 'next/navigation';
 
 const VIEW_TITLES: Record<string, string> = {
-  dashboard: 'Dashboard',
-  upload: 'Upload Images',
-  annotate: 'Annotate Images',
-  train: 'Train Model',
-  review: 'Review Models',
-  registry: 'Model Registry',
-  detect: 'Detect Objects',
-  test: 'Annotate Images',
+  '/': 'Dashboard',
+  '/upload': 'Upload Images',
+  '/annotate': 'Annotate Images',
+  '/train': 'Train Model',
+  '/review': 'Review Models',
+  '/registry': 'Model Registry',
+  '/detect': 'Detect Objects',
+
+  '/users': 'Manage Users',
 };
 
 export function TopBar() {
-  const { currentView, addToast } = useApp();
-  const title = VIEW_TITLES[currentView] || 'Annotate';
+  const { addToast } = useApp();
+  const pathname = usePathname() || '/';
+  const title = VIEW_TITLES[pathname] || 'Dashboard';
 
   const getActionButton = () => {
-    switch (currentView) {
-      case 'test':
-        return (
-          <div className='grid grid-cols-1 lg:grid-cols-2 gap-1'>
-          <Button_Variant1
-            className="bg-card border-2 hover:bg-primary/90 text-primary-foreground font-bold text-xs"
-            onClick={() => addToast('Image upload initiated', 'success')}
-          >
-            Save All
-          </Button_Variant1>
-          <Button
-            className="bg-primary hover:bg-primary/90 text-background font-bold text-xs"
-            onClick={() => addToast('Image upload initiated', 'success')}
-          >
-            Next: Train →
-          </Button>
-          </div>
-        );
-      case 'upload':
+    switch (pathname) {
+
+      case '/upload':
         return (
           <Button
             className="bg-primary hover:bg-primary/90 text-background font-bold text-xs"
@@ -47,7 +34,7 @@ export function TopBar() {
             Next: Annotate →
           </Button>
         );
-      case 'annotate':
+      case '/annotate':
         return (
           <Button
             className="bg-primary hover:bg-primary/90 text-background font-bold"
@@ -56,7 +43,7 @@ export function TopBar() {
             Save Annotations
           </Button>
         );
-      case 'train':
+      case '/train':
         return (
           <Button
             className="bg-primary hover:bg-primary/90 text-background font-bold"
@@ -65,7 +52,7 @@ export function TopBar() {
             Start Training
           </Button>
         );
-      case 'review':
+      case '/review':
         return (
           <Button
             className="bg-primary hover:bg-primary/90 text-background font-bold "
@@ -88,3 +75,4 @@ export function TopBar() {
     </div>
   );
 }
+
