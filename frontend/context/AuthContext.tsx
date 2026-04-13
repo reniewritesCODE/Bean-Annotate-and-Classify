@@ -26,20 +26,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     // Check local storage for token on initial load
-    const storedToken = localStorage.getItem('access_token');
-    const storedUser = localStorage.getItem('user');
-
-    if (storedToken && storedUser) {
-      try {
-        setToken(storedToken);
-        setUser(JSON.parse(storedUser));
-        setIsAuthenticated(true);
-      } catch (e) {
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('user');
+    const verifyToken = async () => {
+      const storedToken = localStorage.getItem('access_token');
+      if (!storedToken) {
+        setIsLoading(false);
+        return;
       }
-    }
-    setIsLoading(false);
+
+      try {
+        const response = await fetch('/api/auth/me', {
+          headers: { 'Authorization': `Bearer ${storedToken}` }
+        });
+
+        if (response.ok) {
+          const userData = await response.json();
+          setToken(storedToken);
+          setUser(userData);
+          setIsAuthenticated(true);
+        } else {
+          // Token invalid or expired
+          localStorage.removeItem('access_token');
+          localStorage.removeItem('user');
+        }
+      } catch (error) {
+        console.error('Session recovery failed:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    verifyToken();
   }, []);
 
   const login = useCallback((newToken: string, newUser: User) => {

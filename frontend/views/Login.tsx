@@ -51,11 +51,8 @@ export function LoginView({ onRegisterClick }: { onRegisterClick: () => void }) 
       }
 
       const data = await response.json();
-      login(data.access_token, {
-        username,
-        role: username.includes('admin') ? 'admin' : 'annotator',
-      });
-      addToast(`Welcome back, ${username}!`, 'success');
+      login(data.access_token, data.user);
+      addToast(`Welcome back, ${data.user.username}!`, 'success');
     } catch (err: any) {
       setError(err.message);
     } finally {

@@ -33,7 +33,8 @@ class Project(Base):
     description = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    images = relationship('Image', back_populates='project')
+    images = relationship('Image', back_populates='project', cascade="all, delete-orphan")
+    training_jobs = relationship('TrainingJob', back_populates='project', cascade="all, delete-orphan")
 
 
 class Image(Base):
@@ -76,6 +77,8 @@ class TrainingJob(Base):
     status = Column(JobStatusType, default='pending')
     config = Column(JSON, nullable=True)                 # epochs, lr, batch_size, etc.
     created_at = Column(DateTime, default=datetime.utcnow)
+
+    project = relationship('Project', back_populates='training_jobs')
 
 
 class ModelVersion(Base):

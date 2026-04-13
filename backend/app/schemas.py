@@ -24,6 +24,9 @@ class Token(BaseModel):
     access_token: str
     token_type: str
 
+class LoginResponse(Token):
+    user: UserResponse
+
 class ProjectBase(BaseModel):
     name: str
     description: Optional[str] = None
@@ -33,6 +36,7 @@ class ProjectCreate(ProjectBase):
 
 class ProjectResponse(ProjectBase):
     id: str
+    thumbnail_url: Optional[str] = None
     created_at: datetime
 
     class Config:

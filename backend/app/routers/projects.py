@@ -5,9 +5,11 @@ from typing import List
 import uuid
 
 from app.database import get_db
-from app.models import Project
+from app.models import Project, Image
 from app.schemas import ProjectCreate, ProjectResponse
 from app.auth import get_current_user, TokenData
+from app.utils.dataset_exporter import DatasetExporter
+from app.utils.s3_utils import get_presigned_url
 
 router = APIRouter(prefix="/api/projects", tags=["projects"])
 
@@ -16,8 +18,21 @@ async def list_projects(
     db: Session = Depends(get_db),
     current_user: TokenData = Depends(get_current_user)
 ):
-    """List all projects."""
-    return db.query(Project).all()
+    """List all projects with an optional thumbnail."""
+    projects = db.query(Project).all()
+    
+    # Enrich projects with thumbnails
+    for project in projects:
+        # Get the most recent image for this project
+        latest_image = db.query(Image).filter(Image.project_id == project.id).order_by(Image.uploaded_at.desc()).first()
+        if latest_image:
+            url = get_presigned_url(latest_image.s3_key)
+            if url:
+                project.thumbnail_url = url.replace("http://minio:9000", "http://localhost:9000")
+        else:
+            project.thumbnail_url = None
+            
+    return projects
 
 @router.post("", response_model=ProjectResponse)
 async def create_project(
@@ -69,3 +84,21 @@ async def delete_project(
     db.delete(project)
     db.commit()
     return {"status": "success", "message": f"Project '{project.name}' deleted."}
+
+@router.post("/{project_id}/export")
+async def export_project_dataset(
+    project_id: str,
+    db: Session = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user)
+):
+    """Export project annotations to YOLO format."""
+    try:
+        exporter = DatasetExporter(db)
+        export_path = exporter.export_project(project_id)
+        return {
+            "status": "success", 
+            "message": "Dataset exported successfully",
+            "export_path": export_path
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

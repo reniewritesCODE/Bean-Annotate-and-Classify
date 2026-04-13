@@ -1,5 +1,5 @@
-import { Dashboard } from '@/views/Dashboard';
+import { ProjectsView } from '@/views/ProjectsView';
 
 export default function Page() {
-  return <Dashboard />;
+  return <ProjectsView />;
 }

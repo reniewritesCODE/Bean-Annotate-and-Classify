@@ -5,7 +5,7 @@ from datetime import timedelta
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import User
-from app.schemas import UserCreate, UserResponse
+from app.schemas import UserCreate, UserResponse, LoginResponse
 from typing import List
 from app.auth import verify_password, get_password_hash, create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES, Token, require_role, get_current_user, TokenData
 
@@ -42,7 +42,7 @@ async def register(user_in: UserCreate, db: Session = Depends(get_db)):
     return new_user
 # ------------------------------------------
 
-@router.post("/login", response_model=Token)
+@router.post("/login", response_model=LoginResponse)
 async def login_for_access_token(
     form_data: OAuth2PasswordRequestForm = Depends(), 
     db: Session = Depends(get_db)
@@ -71,8 +71,17 @@ async def login_for_access_token(
         expires_delta=access_token_expires
     )
     
-    # 4. Return token
-    return {"access_token": access_token, "token_type": "bearer"}
+    # 4. Return token and user info
+    return {
+        "access_token": access_token, 
+        "token_type": "bearer",
+        "user": user
+    }
+
+@router.get("/me", response_model=UserResponse)
+async def get_me(current_user: User = Depends(get_current_user)):
+    """Get currently logged in user info from token."""
+    return current_user
 
 @router.get("/users", response_model=List[UserResponse])
 async def list_users(

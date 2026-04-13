@@ -313,6 +313,36 @@ export function AnnotateView() {
     }
   };
 
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExport = async () => {
+    if (!currentImage) return;
+    
+    setIsExporting(true);
+    const token = localStorage.getItem('access_token');
+    
+    try {
+      const res = await fetch(`/api/projects/${currentImage.project_id}/export`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      const data = await res.json();
+      
+      if (res.ok) {
+        addToast(`Dataset exported to: ${data.export_path}`, 'success');
+      } else {
+        addToast(data.detail || 'Failed to export dataset', 'error');
+      }
+    } catch {
+      addToast('Network error during export', 'error');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const handleKeyPress = (e: React.KeyboardEvent) => {
       if (e.key >= '1' && e.key <= '8') {
         const classId = parseInt(e.key);
@@ -474,7 +504,7 @@ export function AnnotateView() {
                             ref={canvasRef}
                             width={640}
                             height={480}
-                            className="border border-border rounded cursor-crosshair max-w-full max-h-full object-contain"
+                            className="rounded cursor-crosshair max-w-full max-h-full object-contain"
                             style={{ touchAction: 'none' }}
                             onMouseDown={handleMouseDown}
                             onMouseMove={handleMouseMove}
@@ -595,8 +625,12 @@ export function AnnotateView() {
             <button onClick={handleSave} className="w-full py-2 px-3 bg-primary text-white text-sm font-semibold rounded hover:bg-primary/90 transition-colors">
               Save annotations
             </button>
-            <button className="w-full py-2 px-3 bg-secondary text-foreground text-sm font-semibold rounded hover:bg-secondary/80 transition-colors">
-              Proceed to Train →
+            <button 
+              onClick={handleExport}
+              disabled={isExporting || !currentImage}
+              className="w-full py-2 px-3 bg-secondary text-foreground text-sm font-semibold rounded hover:bg-secondary/80 transition-colors disabled:opacity-50"
+            >
+              {isExporting ? 'Exporting...' : 'Proceed to Train →'}
             </button>
           </div>
 

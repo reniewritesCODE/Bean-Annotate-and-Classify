@@ -56,32 +56,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         if (response.ok) {
           const data = await response.json();
           setProjects(data);
-          if (data.length > 0 && !activeProjectId) {
-            setActiveProjectId(data[0].id);
-          } else if (data.length === 0) {
-            // Auto-create a default project if none exists
-            console.log('No projects found, creating Default Project...');
-            const createRes = await fetch('/api/projects', {
-              method: 'POST',
-              headers: { 
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({ name: 'Default Project', description: 'Automatically created project' })
-            });
-            if (createRes.ok) {
-              const newProj = await createRes.json();
-              setProjects([newProj]);
-              setActiveProjectId(newProj.id);
-            } else {
-              console.error('Failed to auto-create project', await createRes.text());
-            }
-          }
+          // Auto-selection removed to support project gallery workflow
         } else if (response.status === 401) {
           console.error('Unauthorized project fetch. Your session may have expired.');
-          // Optional: clear local state if unauthorized
-          // localStorage.removeItem('access_token');
-          // window.location.reload(); 
         } else {
           console.error('Failed to fetch projects', await response.text());
         }
