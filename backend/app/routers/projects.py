@@ -70,16 +70,21 @@ async def get_project(
         raise HTTPException(404, "Project not found")
     return project
 
+from app.utils.cleanup import cleanup_project_resources
+
 @router.delete("/{project_id}")
 async def delete_project(
     project_id: str,
     db: Session = Depends(get_db),
     current_user: TokenData = Depends(get_current_user)
 ):
-    """Delete a project."""
+    """Delete a project and its associated resources."""
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
         raise HTTPException(404, "Project not found")
+    
+    # Clean up physical resources (S3, Disk) before deleting from DB
+    cleanup_project_resources(project, db)
     
     db.delete(project)
     db.commit()
