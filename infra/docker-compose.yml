@@ -33,7 +33,7 @@ services:
       S3_ENDPOINT: http://minio:9000
       REDIS_URL: redis://redis:6379/0
     depends_on: [postgres, redis, minio]
-    volumes: ['../backend:/app']
+    volumes: ['../backend:/app', 'training_data:/app/models/runs','training_data_progress:/app/models/progress' ] # ← add this]
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
   worker:
@@ -48,7 +48,7 @@ services:
       S3_ENDPOINT: http://minio:9000
       REDIS_URL: redis://redis:6379/0
     depends_on: [redis, postgres, minio]
-    volumes: ['../backend:/app']
+    volumes: ['../backend:/app',training_data:/app/models/runs','training_data_progress:/app/models/progress' ] # ← add this]
   
   
   pgadmin:
@@ -99,3 +99,5 @@ volumes:
   ls_data:
   ls_postgres_data:
   ls_redis_data:
+  training_data:
+  training_data_progress:  # ← add this

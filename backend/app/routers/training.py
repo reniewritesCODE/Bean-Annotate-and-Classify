@@ -8,7 +8,8 @@ from pydantic import BaseModel
 from typing import Optional
 from app.worker import celery_app
 from celery.result import AsyncResult
-
+import os
+import json
 import uuid
 
 router = APIRouter(prefix="/api/projects", tags=["training"])
@@ -58,28 +59,28 @@ def start_training(
     return {"job_id": job.id, "status": "pending"}
 
 
-@router.get("/{project_id}/train/status")
-def get_training_status(
-    project_id: str,
-    db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
-):
-    # Return the most recent job for this project
-    job = (
-        db.query(TrainingJob)
-        .filter(TrainingJob.project_id == project_id)
-        .order_by(TrainingJob.created_at.desc())
-        .first()
-    )
-    if not job:
-        raise HTTPException(status_code=404, detail="No training job found for this project")
+# @router.get("/{project_id}/train/status")
+# def get_training_status(
+#     project_id: str,
+#     db: Session = Depends(get_db),
+#     current_user=Depends(get_current_user),
+# ):
+#     # Return the most recent job for this project
+#     job = (
+#         db.query(TrainingJob)
+#         .filter(TrainingJob.project_id == project_id)
+#         .order_by(TrainingJob.created_at.desc())
+#         .first()
+#     )
+#     if not job:
+#         raise HTTPException(status_code=404, detail="No training job found for this project")
 
-    return {
-        "job_id": job.id,
-        "status": job.status,           # pending | running | done | failed
-        "config": job.config,           # includes metrics once done
-        "created_at": job.created_at,
-    }
+#     return {
+#         "job_id": job.id,
+#         "status": job.status,           # pending | running | done | failed
+#         "config": job.config,           # includes metrics once done
+#         "created_at": job.created_at,
+#     }
 
 
 
@@ -106,3 +107,37 @@ def cancel_training(
     db.commit()
 
     return {"status": "cancelled"}
+
+
+
+PROGRESS_DIR = "models/progress"
+
+@router.get("/{project_id}/train/status")
+def get_training_status(
+    project_id: str,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    job = (
+        db.query(TrainingJob)
+        .filter(TrainingJob.project_id == project_id)
+        .order_by(TrainingJob.created_at.desc())
+        .first()
+    )
+    if not job:
+        raise HTTPException(status_code=404, detail="No training job found for this project")
+
+    # Read per-epoch progress file
+    progress = []
+    progress_file = os.path.join(PROGRESS_DIR, f"{job.id}.json")
+    if os.path.exists(progress_file):
+        with open(progress_file) as f:
+            progress = json.load(f)
+
+    return {
+        "job_id": job.id,
+        "status": job.status,
+        "config": job.config,
+        "created_at": job.created_at,
+        "progress": progress,  # ← this is what the frontend reads
+    }

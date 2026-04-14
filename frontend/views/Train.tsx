@@ -47,30 +47,71 @@ export function TrainView() {
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [trainingMetrics]);
 
-  useEffect(() => {
-    if (!isTraining) return;
+  // useEffect(() => {
+  //   if (!isTraining) return;
 
-    const interval = setInterval(() => {
-      setTrainingMetrics((prev) => {
-        if (prev.length >= config.epochs) {
-          setIsTraining(false);
-          addToast('Training completed successfully!', 'success');
-          return prev;
+  //   const interval = setInterval(() => {
+  //     setTrainingMetrics((prev) => {
+  //       if (prev.length >= config.epochs) {
+  //         setIsTraining(false);
+  //         addToast('Training completed successfully!', 'success');
+  //         return prev;
+  //       }
+
+  //       const epoch = prev.length + 1;
+  //       const newMetric = {
+  //         epoch,
+  //         loss: Math.max(0.1, 1.0 - epoch * 0.018 + Math.random() * 0.05),
+  //         acc: Math.min(0.98, 0.5 + epoch * 0.008 + Math.random() * 0.02),
+  //         f1: Math.min(0.98, 0.5 + epoch * 0.008 + Math.random() * 0.02),
+  //       };
+  //       return [...prev, newMetric];
+  //     });
+  //   }, 500);
+
+  //   return () => clearInterval(interval);
+  // }, [isTraining, config.epochs, setIsTraining, setTrainingMetrics, addToast]);
+  // Replace the fake simulation useEffect
+// Replace the fake simulation useEffect
+  useEffect(() => {
+    if (!isTraining || !currentProject?.id) return;
+
+    const token = localStorage.getItem('access_token');
+
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/projects/${currentProject.id}/train/status`, {
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
+        const data = await res.json();
+        console.log('polling response:', data);  // ← add here
+
+        if (data.progress?.length) {
+          const mapped = data.progress.map((p: any) => ({
+            epoch: p.epoch,
+            loss: p.loss ?? 0,
+            acc: p.map50 ?? 0,
+            f1: p.precision ?? 0,
+          }));
+          setTrainingMetrics(mapped);
         }
 
-        const epoch = prev.length + 1;
-        const newMetric = {
-          epoch,
-          loss: Math.max(0.1, 1.0 - epoch * 0.018 + Math.random() * 0.05),
-          acc: Math.min(0.98, 0.5 + epoch * 0.008 + Math.random() * 0.02),
-          f1: Math.min(0.98, 0.5 + epoch * 0.008 + Math.random() * 0.02),
-        };
-        return [...prev, newMetric];
-      });
-    }, 500);
+        if (data.status === 'done') {
+          setIsTraining(false);
+          clearInterval(interval);
+          addToast('Training completed successfully!', 'success');
+        } else if (data.status === 'failed') {
+          setIsTraining(false);
+          clearInterval(interval);
+          addToast(data.config?.error || 'Training failed', 'error');
+        }
+      } catch {
+        // network blip — keep polling
+      }
+    }, 3000);
 
     return () => clearInterval(interval);
-  }, [isTraining, config.epochs, setIsTraining, setTrainingMetrics, addToast]);
+  }, [isTraining, currentProject?.id]);
 
   const handleStartTraining = async () => {
     if (!currentProject?.id) {
@@ -293,7 +334,7 @@ export function TrainView() {
         {/* Metrics */}
         <div className="space-y-4 lg:col-span-2">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <StatCard
+            {/* <StatCard
               label="Epoch"
               value={trainingMetrics.length}
               subtext={`of ${config.epochs}`}
@@ -312,7 +353,27 @@ export function TrainView() {
               label="F1 Score"
               value={metrics ? metrics.f1.toFixed(3) : "0.000"}
               subtext="Model performance"
-            />
+            /> */}
+            <StatCard
+                label="Epoch"
+                value={trainingMetrics.length}
+                subtext={`of ${config.epochs}`}
+              />
+              <StatCard
+                label="Loss"
+                value={metrics ? metrics.loss.toFixed(4) : "0.0000"}
+                subtext="Lower is better"
+              />
+              <StatCard
+                label="mAP50"
+                value={metrics ? `${(metrics.acc * 100).toFixed(1)}%` : "0.0%"}
+                subtext="Validation accuracy"
+              />
+              <StatCard
+                label="Precision"
+                value={metrics ? metrics.f1.toFixed(3) : "0.000"}
+                subtext="Model performance"
+              />
           </div>
 
           {/* Progress Bar */}
@@ -369,12 +430,12 @@ export function TrainView() {
               {trainingMetrics.length === 0 && !isTraining && (
                 <div className="text-muted-foreground font-mono text-sm">System ready. Waiting to start training...</div>
               )}
-              {trainingMetrics.map((m) => (
-                <div key={m.epoch} className="text-zinc-300 font-mono text-[13px] leading-tight">
-                  <span className="text-zinc-500">INFO</span> Epoch {m.epoch}/{config.epochs} 
+              {trainingMetrics.map((m,idx) => (
+                <div key={idx} className="text-zinc-300 font-mono text-[13px] leading-tight">
+                  <span className="text-zinc-500">INFO</span> Epoch {m.epoch}/{config.epochs}
                   {' • '}loss: <span className="text-amber-500">{m.loss.toFixed(4)}</span>
-                  {' • '}accuracy: <span className="text-blue-400">{m.acc.toFixed(4)}</span>
-                  {' • '}f1: <span className="text-indigo-400">{m.f1.toFixed(4)}</span>
+                  {' • '}mAP50: <span className="text-blue-400">{m.acc.toFixed(4)}</span>
+                  {' • '}recall: <span className="text-indigo-400">{m.f1.toFixed(4)}</span>
                 </div>
               ))}
               {isTraining && (
