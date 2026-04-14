@@ -84,29 +84,40 @@
   --color-sidebar-ring: var(--sidebar-ring);
 }
 
-/* Custom scrollbar class */
-.custom-scrollbar {
+/* Global scrollbar styles - applies to all scrollable elements */
+* {
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
 }
-.custom-scrollbar::-webkit-scrollbar {
+
+*::-webkit-scrollbar {
   width: 4px;
   height: 4px;
 }
-.custom-scrollbar::-webkit-scrollbar-track {
+
+*::-webkit-scrollbar-track {
   background: transparent;
 }
-.custom-scrollbar::-webkit-scrollbar-thumb {
+
+*::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.15);
   border-radius: 999px;
 }
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+
+*::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.25);
 }
-.custom-scrollbar::-webkit-scrollbar-button {
+
+*::-webkit-scrollbar-button {
   display: none;
   width: 0;
   height: 0;
+}
+
+/* Legacy custom-scrollbar class - kept for backward compatibility */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
 }
 
 @layer base {
