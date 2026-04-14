@@ -26,7 +26,7 @@ interface TrainConfig {
 }
 
 export function TrainView() {
-  const { isTraining, setIsTraining, trainingMetrics, setTrainingMetrics, addToast, currentProject } = useApp();
+  const { isTraining, setIsTraining, trainingMetrics, setTrainingMetrics, addToast, currentProject, images } = useApp();
   const [config, setConfig] = useState<TrainConfig>({
     model: 'YOLOv8n (global base)',
     strategy: 'Fine-tuning',
@@ -36,8 +36,13 @@ export function TrainView() {
     imageSize: 640,
     augmentation: 'Mosaic + flip',
   });
-  const logEndRef = useRef<HTMLDivElement>(null);
+  const [jobId, setJobId] = useState<string | null>(null);
 
+  const logEndRef = useRef<HTMLDivElement>(null);
+  const totalImages = images.length;
+  const trainCount = Math.floor(totalImages * 0.8);
+  const valCount = Math.floor(totalImages * 0.1);
+  const testCount = totalImages - trainCount - valCount;
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [trainingMetrics]);
@@ -97,6 +102,7 @@ export function TrainView() {
       }
 
       // Job is queued — now let the fake simulation run as normal
+      setJobId(data.job_id);
       setTrainingMetrics([]);
       setIsTraining(true);
       addToast('Training started', 'success');
@@ -106,11 +112,29 @@ export function TrainView() {
     }
   };
 
-  const handleStop = () => {
-    setIsTraining(false);
-    addToast('Training stopped', 'info');
-  };
+  // const handleStop = () => {
+  //   setIsTraining(false);
+  //   addToast('Training stopped', 'info');
+  // };
 
+  const handleStop = async () => {
+      if (!currentProject?.id) return;
+
+      const token = localStorage.getItem('access_token');
+
+      try {
+        await fetch(`/api/projects/${currentProject.id}/train/cancel`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
+      } catch {
+        // best effort
+      }
+
+      setIsTraining(false);
+      setJobId(null);
+      addToast('Training stopped', 'info');
+ };
   const metrics = trainingMetrics[trainingMetrics.length - 1];
 
   return (
@@ -213,7 +237,7 @@ export function TrainView() {
             </div>
           </Panel>
 
-          <Panel title="Dataset split" className='font-headline'>
+          {/* <Panel title="Dataset split" className='font-headline'>
             <div className="flex flex-col text-sm px-2 font-sans">
               <div className="flex justify-between items-center py-3 border-b border-border/50">
                 <span className="font-medium text-foreground">Train</span>
@@ -228,7 +252,25 @@ export function TrainView() {
                 <span className="text-foreground">10 images (10%)</span>
               </div>
             </div>
-          </Panel>
+          </Panel> */}
+
+
+          <Panel title="Dataset split" className='font-headline'>
+            <div className="flex flex-col text-sm px-2 font-sans">
+            <div className="flex justify-between items-center py-3 border-b border-border/50">
+              <span className="font-medium text-foreground">Train</span>
+              <span className="text-foreground">{trainCount} images (80%)</span>
+            </div>
+            <div className="flex justify-between items-center py-3 border-b border-border/50">
+              <span className="font-medium text-foreground">Validation</span>
+              <span className="text-foreground">{valCount} images (10%)</span>
+            </div>
+            <div className="flex justify-between items-center py-3">
+              <span className="font-medium text-foreground">Test</span>
+              <span className="text-foreground">{testCount} images (10%)</span>
+            </div>
+          </div>
+        </Panel>
 
           <div className="flex gap-2 pt-2">
             <Button

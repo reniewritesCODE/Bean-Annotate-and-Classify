@@ -2,6 +2,8 @@
 
 import os
 import json
+from pathlib import Path
+
 
 BASE_MODEL_PATH = "models/base/robusta_base.pt"
 RUNS_DIR = "models/runs"
@@ -35,5 +37,5 @@ def run_training(dataset_path: str, job_id: str, epochs=50, imgsz=640, batch=16)
         "map50_95": float(results.results_dict.get("metrics/mAP50-95(B)", 0)),
         "precision": float(results.results_dict.get("metrics/precision(B)", 0)),
         "recall": float(results.results_dict.get("metrics/recall(B)", 0)),
-        "best_model_path": str(results.save_dir / "weights/best.pt"),
+        "best_model_path": str(Path(results.save_dir) / "weights" / "best.pt"),
     }
