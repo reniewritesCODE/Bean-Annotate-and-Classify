@@ -25,9 +25,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   useEffect(() => {
-    // Check local storage for token on initial load
+    // Restore auth state from localStorage immediately
+    const storedToken = localStorage.getItem('access_token');
+    const storedUser = localStorage.getItem('user');
+
+    if (storedToken && storedUser) {
+      try {
+        const parsedUser = JSON.parse(storedUser);
+        setToken(storedToken);
+        setUser(parsedUser);
+        setIsAuthenticated(true);
+      } catch (e) {
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('user');
+      }
+    }
+
+    // Verify token in background (optional - won't block auth)
     const verifyToken = async () => {
-      const storedToken = localStorage.getItem('access_token');
       if (!storedToken) {
         setIsLoading(false);
         return;
@@ -43,13 +58,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setToken(storedToken);
           setUser(userData);
           setIsAuthenticated(true);
-        } else {
-          // Token invalid or expired
+          localStorage.setItem('user', JSON.stringify(userData));
+        } else if (response.status === 401 || response.status === 403) {
+          // Token explicitly invalid - clear session
           localStorage.removeItem('access_token');
           localStorage.removeItem('user');
+          setToken(null);
+          setUser(null);
+          setIsAuthenticated(false);
         }
+        // For other errors (500, 404, etc), keep existing session
       } catch (error) {
-        console.error('Session recovery failed:', error);
+        // Network error or endpoint doesn't exist - keep session alive
+        console.log('Token verification unavailable, keeping session:', error);
       } finally {
         setIsLoading(false);
       }
