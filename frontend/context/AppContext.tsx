@@ -28,6 +28,8 @@ interface AppContextType {
   toasts: ToastMessage[];
   addToast: (message: string, type: 'success' | 'error' | 'info') => void;
   removeToast: (id: string) => void;
+  currentProject: any | null;  
+
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -42,6 +44,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [trainingMetrics, setTrainingMetrics] = useState<TrainingMetrics[]>([]);
   const [isTraining, setIsTraining] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const currentProject = projects.find(p => p.id === activeProjectId) ?? null;
+
 
   // Fetch projects on mount or when token changes
   useEffect(() => {
@@ -166,6 +170,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     toasts,
     addToast,
     removeToast,
+    currentProject,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
