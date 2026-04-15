@@ -1,12 +1,13 @@
 # backend/app/routers/projects.py
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from typing import List
 import uuid
 
 from app.database import get_db
-from app.models import Project, Image
-from app.schemas import ProjectCreate, ProjectResponse
+from app.models import Project, Image, Annotation
+from app.schemas import ProjectCreate, ProjectResponse, ProjectSummaryResponse, ClassCount, ActivityItem
 from app.auth import get_current_user, TokenData
 from app.utils.dataset_exporter import DatasetExporter
 from app.utils.s3_utils import get_presigned_url
@@ -69,6 +70,94 @@ async def get_project(
     if not project:
         raise HTTPException(404, "Project not found")
     return project
+
+
+@router.get("/{project_id}/summary", response_model=ProjectSummaryResponse)
+async def get_project_summary(
+    project_id: str,
+    db: Session = Depends(get_db),
+    current_user: TokenData = Depends(get_current_user),
+):
+    """Return aggregated analytics for the project dashboard."""
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    total_images = db.query(func.count(Image.id)).filter(Image.project_id == project_id).scalar() or 0
+    annotated_images = (
+        db.query(func.count(Image.id))
+        .filter(Image.project_id == project_id, Image.status == "done")
+        .scalar()
+        or 0
+    )
+
+    total_annotations = (
+        db.query(func.count(Annotation.id))
+        .join(Image, Annotation.image_id == Image.id)
+        .filter(Image.project_id == project_id)
+        .scalar()
+        or 0
+    )
+
+    class_rows = (
+        db.query(Annotation.class_id.label("class_id"), func.count(Annotation.id).label("count"))
+        .join(Image, Annotation.image_id == Image.id)
+        .filter(Image.project_id == project_id)
+        .group_by(Annotation.class_id)
+        .order_by(func.count(Annotation.id).desc())
+        .all()
+    )
+    class_distribution = [ClassCount(class_id=row.class_id, count=row.count) for row in class_rows]
+
+    # Minimal recent activity without adding audit tables/timestamps:
+    # - Image uploads: use Image.uploaded_at
+    # - Annotation completion: infer from Image.status == 'done' (timestamp approximated by uploaded_at)
+    recent_activity: List[ActivityItem] = []
+
+    recent_uploads = (
+        db.query(Image.id, Image.uploaded_at)
+        .filter(Image.project_id == project_id)
+        .order_by(Image.uploaded_at.desc())
+        .limit(10)
+        .all()
+    )
+    for img_id, ts in recent_uploads:
+        if ts:
+            recent_activity.append(
+                ActivityItem(
+                    timestamp=ts,
+                    action="Uploaded image",
+                    details=f"Image {img_id} uploaded",
+                )
+            )
+
+    recent_done = (
+        db.query(Image.id, Image.uploaded_at)
+        .filter(Image.project_id == project_id, Image.status == "done")
+        .order_by(Image.uploaded_at.desc())
+        .limit(10)
+        .all()
+    )
+    for img_id, ts in recent_done:
+        if ts:
+            recent_activity.append(
+                ActivityItem(
+                    timestamp=ts,
+                    action="Annotation completed",
+                    details=f"Image {img_id} marked done",
+                )
+            )
+
+    recent_activity = sorted(recent_activity, key=lambda a: a.timestamp, reverse=True)[:10]
+
+    return ProjectSummaryResponse(
+        project_id=project_id,
+        total_images=total_images,
+        annotated_images=annotated_images,
+        total_annotations=total_annotations,
+        class_distribution=class_distribution,
+        recent_activity=recent_activity,
+    )
 
 from app.utils.cleanup import cleanup_project_resources
 

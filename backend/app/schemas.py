@@ -1,7 +1,7 @@
 # backend/app/schemas.py
 from pydantic import BaseModel
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 
 from typing import Optional, Literal
 
@@ -74,3 +74,23 @@ class AnnotationResponse(AnnotationBase):
 
     class Config:
         from_attributes = True
+
+
+class ClassCount(BaseModel):
+    class_id: int
+    count: int
+
+
+class ActivityItem(BaseModel):
+    timestamp: datetime
+    action: str
+    details: str
+
+
+class ProjectSummaryResponse(BaseModel):
+    project_id: str
+    total_images: int
+    annotated_images: int
+    total_annotations: int
+    class_distribution: List[ClassCount]
+    recent_activity: List[ActivityItem]
