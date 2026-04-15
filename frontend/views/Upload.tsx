@@ -2,12 +2,13 @@
 
 import { useApp } from '@/context/AppContext';
 import { Panel } from '@/components/panels';
-import { useRef } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Upload, Trash2 } from 'lucide-react';
 
 export function UploadView() {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const dropRef = useRef<HTMLDivElement>(null);
   const { 
     images, 
     activeProjectId, 
@@ -16,42 +17,81 @@ export function UploadView() {
     setImages 
   } = useApp();
 
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    const token = localStorage.getItem('access_token');
-    
-    if (!file) return;
-    
-    if (!activeProjectId) {
-      addToast('Please select a project first', 'error');
-      return;
-    }
+  const [isDragging, setIsDragging] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
-    if (!token) {
-      addToast('Authentication required', 'error');
-      return;
-    }
+  const uploadFiles = useCallback(
+    async (files: File[]) => {
+      const token = localStorage.getItem('access_token');
 
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('project_id', activeProjectId);
+      if (!files.length) return;
+      if (!activeProjectId) {
+        addToast('Please select a project first', 'error');
+        return;
+      }
+      if (!token) {
+        addToast('Authentication required', 'error');
+        return;
+      }
 
-    try {
-      addToast('Uploading image...', 'info');
-      const response = await fetch('/api/images', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
-        body: formData,
-      });
+      const imageFiles = files.filter((f) => f.type?.startsWith('image/'));
+      if (imageFiles.length === 0) {
+        addToast('Please select image files only', 'error');
+        return;
+      }
 
-      if (!response.ok) throw new Error('Upload failed');
+      setIsUploading(true);
+      addToast(`Uploading ${imageFiles.length} image(s)...`, 'info');
 
-      const newImage = await response.json();
-      setImages((prev: any) => [...prev, newImage]);
-      addToast('Image uploaded successfully', 'success');
-    } catch (error) {
-      addToast('Upload failed', 'error');
-    }
+      try {
+        const results = await Promise.allSettled(
+          imageFiles.map(async (file) => {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('project_id', activeProjectId);
+
+            const response = await fetch('/api/images', {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${token}` },
+              body: formData,
+            });
+
+            if (!response.ok) {
+              const text = await response.text();
+              throw new Error(text || 'Upload failed');
+            }
+            return response.json();
+          }),
+        );
+
+        const uploaded: any[] = [];
+        let failed = 0;
+        for (const r of results) {
+          if (r.status === 'fulfilled') uploaded.push(r.value);
+          else failed += 1;
+        }
+
+        if (uploaded.length) {
+          setImages((prev: any) => [...prev, ...uploaded]);
+        }
+
+        if (failed === 0) addToast('Upload complete', 'success');
+        else if (uploaded.length === 0) addToast('All uploads failed', 'error');
+        else addToast(`Uploaded ${uploaded.length}, failed ${failed}`, 'info');
+      } catch {
+        addToast('Upload failed', 'error');
+      } finally {
+        setIsUploading(false);
+      }
+    },
+    [activeProjectId, addToast, setImages],
+  );
+
+  const handleUploadInput = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    await uploadFiles(files);
+    // allow re-selecting the same file(s)
+    e.target.value = '';
   };
 
   const handleDelete = async (id: string) => {
@@ -80,15 +120,43 @@ export function UploadView() {
         type="file"
         ref={fileInputRef}
         className="hidden"
-        onChange={handleUpload}
+        onChange={handleUploadInput}
         accept="image/*"
+        multiple
       />
       
       {/* Upload Area */} 
       <Panel title="Upload New Images" className='font-headline'>
         <div 
-          className="border-2 border-dashed border-border rounded-lg p-12 text-center hover:border-primary/50 transition-colors cursor-pointer font-sans"
+          ref={dropRef}
+          className={[
+            "border-2 border-dashed border-border rounded-lg p-12 text-center transition-colors cursor-pointer font-sans",
+            isDragging ? "border-primary bg-primary/5" : "hover:border-primary/50",
+            isUploading ? "opacity-80 pointer-events-none" : "",
+          ].join(' ')}
           onClick={triggerSelect}
+          onDragEnter={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setIsDragging(true);
+          }}
+          onDragOver={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setIsDragging(true);
+          }}
+          onDragLeave={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setIsDragging(false);
+          }}
+          onDrop={async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setIsDragging(false);
+            const files = Array.from(e.dataTransfer.files ?? []);
+            await uploadFiles(files);
+          }}
         >
           <Upload className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
           <p className="text-lg font-medium text-foreground mb-2">
@@ -100,8 +168,9 @@ export function UploadView() {
               e.stopPropagation();
               triggerSelect();
             }}
+            disabled={isUploading}
           >
-            Select Images
+            {isUploading ? 'Uploading…' : 'Select Images'}
           </Button>
         </div>
       </Panel>

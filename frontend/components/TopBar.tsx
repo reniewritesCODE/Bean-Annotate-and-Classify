@@ -20,49 +20,51 @@ const VIEW_TITLES: Record<string, string> = {
 export function TopBar() {
   const { addToast } = useApp();
   const pathname = usePathname() || '/';
-  const title = VIEW_TITLES[pathname] || 'Dashboard';
+  const pathSegments = pathname.split('/').filter(Boolean);
+  const leaf = pathSegments.length ? `/${pathSegments[pathSegments.length - 1]}` : '/';
+  const title = VIEW_TITLES[pathname] || VIEW_TITLES[leaf] || 'Dashboard';
 
   const getActionButton = () => {
-    switch (pathname) {
+    switch (leaf) {
 
-      case '/upload':
-        return (
-          <Button
-            className="bg-primary hover:bg-primary/90 text-background font-bold text-xs"
-            onClick={() => addToast('Image upload initiated', 'success')}
-          >
-            Next: Annotate →
-          </Button>
-        );
-      case '/annotate':
-        return (
-          <Button
-            className="bg-primary hover:bg-primary/90 text-background font-bold"
-            onClick={() => addToast('Annotations saved', 'success')}
-          >
-            Save Annotations
-          </Button>
-        );
-      case '/train':
-        return (
-          <Button
-            className="bg-primary hover:bg-primary/90 text-background font-bold"
-            onClick={() => addToast('Training started', 'success')}
-          >
-            Start Training
-          </Button>
-        );
-      case '/review':
-        return (
-          <Button
-            className="bg-primary hover:bg-primary/90 text-background font-bold "
-            onClick={() => addToast('Model approved', 'success')}
-          >
-            Approve Model
-          </Button>
-        );
-      default:
-        return null;
+      // case '/upload':
+      //   return (
+      //     <Button
+      //       className="bg-primary hover:bg-primary/90 text-background font-bold text-xs"
+      //       onClick={() => addToast('Image upload initiated', 'success')}
+      //     >
+      //       Next: Annotate →
+      //     </Button>
+      //   );
+      // case '/annotate':
+      //   return (
+      //     <Button
+      //       className="bg-primary hover:bg-primary/90 text-background font-bold"
+      //       onClick={() => addToast('Annotations saved', 'success')}
+      //     >
+      //       Save Annotations
+      //     </Button>
+      //   );
+      // case '/train':
+      //   return (
+      //     <Button
+      //       className="bg-primary hover:bg-primary/90 text-background font-bold"
+      //       onClick={() => addToast('Training started', 'success')}
+      //     >
+      //       Start Training
+      //     </Button>
+      //   );
+      // case '/review':
+      //   return (
+      //     <Button
+      //       className="bg-primary hover:bg-primary/90 text-background font-bold "
+      //       onClick={() => addToast('Model approved', 'success')}
+      //     >
+      //       Approve Model
+      //     </Button>
+      //   );
+      // default:
+      //   return null;
     }
   };
 

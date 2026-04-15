@@ -1,11 +1,11 @@
 'use client';
 
-import { Sidebar } from '@/components/Sidebar';
+import { PrimarySidebar, ProjectSidebar } from '@/components/Sidebar';
 import { TopBar } from '@/components/TopBar';
 import { Toast } from '@/components/Toast';
 import { useAuth } from '@/context/AuthContext';
 import { Loader2 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
 export default function DashboardLayout({
@@ -15,6 +15,8 @@ export default function DashboardLayout({
 }) {
   const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
+  const params = useParams();
+  const projectId = params?.projectId as string | undefined;
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -32,8 +34,11 @@ export default function DashboardLayout({
 
   return (
     <div className="flex h-screen bg-foreground flex-row w-full">
-      {/* Sidebar */}
-      <Sidebar />
+      {/* Primary sidebar (collapses to rail inside projects) */}
+      <PrimarySidebar />
+
+      {/* Project sidebar (only inside projects) */}
+      {projectId && <ProjectSidebar />}
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">

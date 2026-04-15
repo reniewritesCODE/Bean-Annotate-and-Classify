@@ -3,7 +3,7 @@
 import { useApp } from '@/context/AppContext';
 import { DEFECT_CLASSES } from '@/lib/constants';
 import { drawCanvasImageAndBoxes, getImageFromCache } from '@/lib/canvas-utils';
-import { useRef, useEffect, useState, useCallback } from 'react';
+import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { BoundingBox } from '@/lib/types';
 import { Trash2, ChevronLeft, ChevronRight, X } from 'lucide-react';
@@ -102,6 +102,10 @@ export function AnnotateView() {
     ? annotations[currentImage.id] || []
     : [];
 
+  const [isAutoSaving, setIsAutoSaving] = useState(false);
+  const lastSavedSignatureRef = useRef<string>('');
+  const autosaveTimerRef = useRef<number | null>(null);
+
   // Redraw canvas when anything changes
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -109,7 +113,7 @@ export function AnnotateView() {
 
     drawCanvasImageAndBoxes(
       canvas,
-      currentImage.url,
+      currentImage.url ?? null,
       DEFECT_CLASSES,
       [...currentAnnotations, ...(tempBox ? [tempBox] : [])]
     );
@@ -222,10 +226,6 @@ export function AnnotateView() {
       });
 
       setTempBox(null);
-      addToast(
-        `${DEFECT_CLASSES[selectedClass - 1].name} box added`,
-        'success'
-      );
   };
 
   const handleDeleteBox = (boxIndex: string) => {
@@ -245,7 +245,7 @@ export function AnnotateView() {
     const token = localStorage.getItem('access_token');
     
     // Grab the cached image element to find its natural dimensions
-    const imgElement = getImageFromCache(currentImage.url);
+    const imgElement = getImageFromCache(currentImage.url ?? '');
     if (!imgElement) {
         addToast('Please wait for image to load fully before saving', 'error');
         return;
@@ -304,7 +304,7 @@ export function AnnotateView() {
          body: JSON.stringify(payload)
       });
       if (res.ok) {
-        addToast('Annotations saved', 'success');
+        // Annotations saved successfully
       } else {
         addToast('Failed to save annotations', 'error');
       }
@@ -312,6 +312,40 @@ export function AnnotateView() {
        addToast('Network error saving annotations', 'error');
     }
   };
+
+  const autosaveSignature = useMemo(() => {
+    if (!currentImage) return '';
+    // Stable signature to avoid resaving identical payloads
+    // (stringifying is fine here: max boxes is small, and it debounces anyway).
+    return `${currentImage.id}:${JSON.stringify(currentAnnotations)}`;
+  }, [currentImage, currentAnnotations]);
+
+  useEffect(() => {
+    if (!currentImage) return;
+
+    // Debounced autosave to avoid spamming the backend while drawing.
+    if (autosaveTimerRef.current) window.clearTimeout(autosaveTimerRef.current);
+
+    // If unchanged since last save, do nothing.
+    if (autosaveSignature && autosaveSignature === lastSavedSignatureRef.current) return;
+
+    autosaveTimerRef.current = window.setTimeout(async () => {
+      if (!currentImage) return;
+      if (autosaveSignature === lastSavedSignatureRef.current) return;
+
+      setIsAutoSaving(true);
+      try {
+        await handleSave();
+        lastSavedSignatureRef.current = autosaveSignature;
+      } finally {
+        setIsAutoSaving(false);
+      }
+    }, 900);
+
+    return () => {
+      if (autosaveTimerRef.current) window.clearTimeout(autosaveTimerRef.current);
+    };
+  }, [autosaveSignature, currentImage, handleSave]);
 
   const [isExporting, setIsExporting] = useState(false);
 
@@ -470,7 +504,7 @@ export function AnnotateView() {
 
             <div className="flex-shrink-0 px-5 py-3 border-b border-border flex items-center justify-between">
               <h3 className="text-sm font-semibold text-foreground font-headline">
-                {currentImage?.name || (currentImage?.id ? `Image-${currentImage.id.toString().slice(-4)}` : 'No image selected')}
+                {currentImage?.id ? `Image-${currentImage.id.toString().slice(-4)}` : 'No image selected'}
               </h3>
               <div className="flex items-center gap-1">
                 <button
@@ -622,13 +656,10 @@ export function AnnotateView() {
 
             {/* Bottom Action Buttons */}
           <div className="p-4 border-t border-border space-y-2">
-            <button onClick={handleSave} className="w-full py-2 px-3 bg-primary text-white text-sm font-semibold rounded hover:bg-primary/90 transition-colors">
-              Save annotations
-            </button>
             <button 
               onClick={handleExport}
               disabled={isExporting || !currentImage}
-              className="w-full py-2 px-3 bg-secondary text-foreground text-sm font-semibold rounded hover:bg-secondary/80 transition-colors disabled:opacity-50"
+              className="w-full py-2 px-3 bg-yellow-500 text-black text-sm font-semibold rounded hover:bg-yellow-600 transition-colors disabled:opacity-50"
             >
               {isExporting ? 'Exporting...' : 'Proceed to Train →'}
             </button>

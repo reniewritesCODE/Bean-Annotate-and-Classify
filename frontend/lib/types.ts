@@ -15,10 +15,15 @@ export interface BoundingBox {
 }
 
 export interface ImageData {
-  id: number;
-  seed: number;
-  status: 'pending' | 'annotated' | 'training' | 'complete';
-  count: number;
+  id: string;
+  project_id: string;
+  s3_key: string;
+  url?: string | null;
+  width?: number | null;
+  height?: number | null;
+  split: 'train' | 'val' | 'test' | string;
+  status: 'none' | 'partial' | 'done' | string;
+  uploaded_at: string;
 }
 
 export interface Model {
@@ -53,4 +58,24 @@ export interface ActivityLog {
   timestamp: string;
   action: string;
   details: string;
+}
+
+export interface ClassCount {
+  class_id: number;
+  count: number;
+}
+
+export interface ActivityItem {
+  timestamp: string;
+  action: string;
+  details: string;
+}
+
+export interface ProjectSummaryResponse {
+  project_id: string;
+  total_images: number;
+  annotated_images: number;
+  total_annotations: number;
+  class_distribution: ClassCount[];
+  recent_activity: ActivityItem[];
 }

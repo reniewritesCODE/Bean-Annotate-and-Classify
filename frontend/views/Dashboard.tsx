@@ -1,34 +1,89 @@
 'use client';
 
 import { StatCard, Panel } from '@/components/panels';
-import { ACTIVITY_LOGS, CLASS_DISTRIBUTION } from '@/lib/constants';
 import { FileImage, CheckCircle, Database } from 'lucide-react';
-import { useApp } from '@/context/AppContext';
+import { useParams } from 'next/navigation';
+import { useEffect, useMemo, useState } from 'react';
+import type { ProjectSummaryResponse } from '@/lib/types';
+import { DEFECT_CLASSES } from '@/lib/constants';
 
-const CHART_COLORS: Record<string, string> = {
-  'Full Black': '#ef4444',
-  'Full Sour': '#ea580c',
-  'Fungus Damage': '#d97706',
-  'Severe Insect Damage': '#be185d',
-  'Foreign Matter': '#3A86FF',
-  'Dried Cherry/Pod': '#8338EC',
-  'Partial Black': '#8b5cf6',
-  'Partial Sour': '#3b82f6',
-  'Hull/Husk': '#06D6A0',
-  'Parchment/Pergamino': '#EF476F',
-  'Slight Insect Damage': '#118AB2',
-  'Floater': '#F72585',
-  'Immature/Unripe': '#10b981',
-  'Withered': '#7209B7',
-  'Shell': '#4CC9F0',
-  'Broken/Chipped/Cut': '#65a30d'
-};
+function getDefectClassMeta(classId: number) {
+  const cls = DEFECT_CLASSES.find((c) => c.id === classId);
+  return {
+    name: cls?.name ?? `Class ${classId}`,
+    color: cls?.color ?? '#888',
+  };
+}
 
 export function Dashboard() {
-  const { images } = useApp();
-  
-  const totalImages = images.length;
-  const annotatedImages = images.filter((img: any) => img.status === 'done').length;
+  const params = useParams();
+  const projectId = params?.projectId as string | undefined;
+
+  const [summary, setSummary] = useState<ProjectSummaryResponse | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    const ctrl = new AbortController();
+
+    async function run() {
+      if (!projectId) return;
+      setIsLoading(true);
+      setError(null);
+
+      const token = localStorage.getItem('access_token');
+      try {
+        const res = await fetch(`/api/projects/${projectId}/summary`, {
+          headers: { Authorization: `Bearer ${token}` },
+          signal: ctrl.signal,
+        });
+
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(text || `Request failed (${res.status})`);
+        }
+
+        const data = (await res.json()) as ProjectSummaryResponse;
+        if (isMounted) setSummary(data);
+      } catch (e: any) {
+        if (e?.name === 'AbortError') return;
+        if (isMounted) setError(e?.message || 'Failed to load dashboard summary');
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    }
+
+    run();
+    return () => {
+      isMounted = false;
+      ctrl.abort();
+    };
+  }, [projectId]);
+
+  const classDistribution = useMemo(() => {
+    const counts = new Map<number, number>();
+    for (const row of summary?.class_distribution ?? []) {
+      counts.set(row.class_id, row.count);
+    }
+
+    // Always show all known defect classes (including zeros) in a stable order.
+    return DEFECT_CLASSES.map((cls) => ({
+      class_id: cls.id,
+      count: counts.get(cls.id) ?? 0,
+    }));
+  }, [summary]);
+
+  const maxClassCount = useMemo(() => {
+    const max = Math.max(0, ...classDistribution.map((d) => d.count));
+    return max || 1;
+  }, [classDistribution]);
+
+  const defectsAvg = useMemo(() => {
+    if (!summary) return 0;
+    if (summary.annotated_images <= 0) return 0;
+    return summary.total_annotations / summary.annotated_images;
+  }, [summary]);
 
   return (
     <div className="p-4 flex flex-col space-y-4 h-[calc(100vh-4rem)] overflow-hidden">
@@ -36,14 +91,14 @@ export function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <StatCard
           label="Total Images"
-          value={totalImages}
-          subtext={`${annotatedImages} annotated`}
+          value={summary?.total_images ?? 0}
+          subtext={isLoading ? 'Loading…' : `${summary?.annotated_images ?? 0} annotated`}
           icon={<FileImage className="w-6 h-6" />}
         />
         <StatCard
           label="Annotations"
-          value={0}
-          subtext="0 defects avg"
+          value={summary?.total_annotations ?? 0}
+          subtext={isLoading ? 'Loading…' : `${defectsAvg.toFixed(2)} defects avg`}
           icon={<CheckCircle className="w-6 h-6" />}
         />
         <StatCard
@@ -63,54 +118,64 @@ export function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 flex-1 min-h-0">
         <Panel title="Class distribution" className="flex flex-col h-full overflow-hidden font-headline">
           <div className="flex flex-col gap-1.5 py-1 pr-4 flex-1 overflow-y-auto min-h-0 custom-scrollbar">
-            {CLASS_DISTRIBUTION.map((item) => {
-              // Calculate percentage based on max value (38)
-              const maxVal = Math.max(...CLASS_DISTRIBUTION.map((d: any) => d.value));
-              const widthPct = (item.value / maxVal) * 100;
-              const color = CHART_COLORS[item.name] || '#888';
+            {isLoading ? (
+              <div className="text-xs text-muted-foreground font-sans py-2">Loading…</div>
+            ) : error ? (
+              <div className="text-xs text-red-400 font-sans py-2">{error}</div>
+            ) : (
+              classDistribution.map((item) => {
+                const widthPct = (item.count / maxClassCount) * 100;
+                const meta = getDefectClassMeta(item.class_id);
+                const label = meta.name;
+                const color = meta.color;
 
-              return (
-                <div key={item.name} className="flex items-center gap-2 font-sans">
-                  <span className="w-36 text-right text-xs text-zinc-300 truncate" title={item.name}>
-                    {item.name}
-                  </span>
-                  <div className="flex-1 h-4 bg-[#262626] rounded-sm relative overflow-hidden">
-                    <div
-                      className="h-full absolute left-0 top-0 rounded-sm flex items-center justify-end pr-2"
-                      style={{ width: `${widthPct}%`, backgroundColor: color }}
-                    >
-                      <span className="text-[10px] font-semibold text-black/50">
-                        {item.value}
-                      </span>
+                return (
+                  <div key={item.class_id} className="flex items-center gap-2 font-sans">
+                    <span className="w-36 text-right text-xs text-zinc-300 truncate" title={label}>
+                      {label}
+                    </span>
+                    <div className="flex-1 h-4 bg-[#262626] rounded-sm relative overflow-hidden">
+                      <div
+                        className="h-full absolute left-0 top-0 rounded-sm flex items-center justify-end pr-2"
+                        style={{ width: `${widthPct}%`, backgroundColor: color }}
+                      >
+                        <span className="text-[10px] font-semibold text-black/50">
+                          {item.count}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </div>
         </Panel>
 
         {/* Activity Log */}
         <Panel title="Recent Activity" className="flex flex-col h-full overflow-hidden font-headline">
           <div className="space-y-3 flex-1 overflow-y-auto min-h-0 pr-4 custom-scrollbar font-sans">
-            {ACTIVITY_LOGS.map((log) => (
-              <div
-                key={log.id}
-                className="flex gap-3 pb-3 border-b border-border last:border-b-0"
-              >
-                <div className="flex-1">
-                  <p className="font-medium text-sm text-foreground">
-                    {log.action}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {log.details}
+            {isLoading ? (
+              <div className="text-xs text-muted-foreground py-2">Loading…</div>
+            ) : error ? (
+              <div className="text-xs text-red-400 py-2">{error}</div>
+            ) : (summary?.recent_activity?.length ?? 0) === 0 ? (
+              <div className="text-xs text-muted-foreground py-2">No activity yet.</div>
+            ) : (
+              summary!.recent_activity.map((log, idx) => (
+                <div
+                  key={`${log.timestamp}-${idx}`}
+                  className="flex gap-3 pb-3 border-b border-border last:border-b-0"
+                >
+                  <div className="flex-1">
+                    <p className="font-medium text-sm text-foreground">{log.action}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{log.details}</p>
+                  </div>
+                  <p className="text-xs text-muted-foreground whitespace-nowrap">
+                    {new Date(log.timestamp).toLocaleString()}
                   </p>
                 </div>
-                <p className="text-xs text-muted-foreground whitespace-nowrap">
-                  {log.timestamp}
-                </p>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </Panel>
       </div>
