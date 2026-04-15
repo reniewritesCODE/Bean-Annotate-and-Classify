@@ -20,23 +20,35 @@ services:
       MINIO_ROOT_PASSWORD: minioadmin
     ports: ['9000:9000', '9001:9001']
     volumes: [minio_data:/data]
-
+  
   api:
-    build: ../backend
+    build:
+      context: ../backend
+      args:
+        REQUIREMENTS: requirements-api.txt
     ports: ['8000:8000']
     env_file: ../.env
     environment:
-      DATABASE_URL: postgresql://beanscan:beanscanpw@postgres:5432/beanscan  # ← overrides .endv
+      DATABASE_URL: postgresql://beanscan:beanscanpw@postgres:5432/beanscan
+      S3_ENDPOINT: http://minio:9000
+      REDIS_URL: redis://redis:6379/0
     depends_on: [postgres, redis, minio]
-    volumes: ['../backend:/app']
+    volumes: ['../backend:/app', 'training_data:/app/models/runs','training_data_progress:/app/models/progress' ] # ← add this]
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
   worker:
-    build: ../backend
-    command: sleep infinity
+    build:
+      context: ../backend
+      args:
+        REQUIREMENTS: requirements-worker.txt
+    command: celery -A app.worker.celery_app worker --loglevel=info --concurrency=1
     env_file: ../.env
+    environment:
+      DATABASE_URL: postgresql://beanscan:beanscanpw@postgres:5432/beanscan
+      S3_ENDPOINT: http://minio:9000
+      REDIS_URL: redis://redis:6379/0
     depends_on: [redis, postgres, minio]
-    volumes: ['../backend:/app']
+    volumes: ['../backend:/app',training_data:/app/models/runs','training_data_progress:/app/models/progress' ] # ← add this]
   
   
   pgadmin:
@@ -87,3 +99,5 @@ volumes:
   ls_data:
   ls_postgres_data:
   ls_redis_data:
+  training_data:
+  training_data_progress:  # ← add this

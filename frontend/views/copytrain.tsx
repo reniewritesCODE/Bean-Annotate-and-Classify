@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useApp } from '@/context/AppContext';
@@ -26,7 +27,7 @@ interface TrainConfig {
 }
 
 export function TrainView() {
-  const { isTraining, setIsTraining, trainingMetrics, setTrainingMetrics, addToast, currentProject, images } = useApp();
+  const { isTraining, setIsTraining, trainingMetrics, setTrainingMetrics, addToast, currentProject } = useApp();
   const [config, setConfig] = useState<TrainConfig>({
     model: 'YOLOv8n (global base)',
     strategy: 'Fine-tuning',
@@ -36,82 +37,36 @@ export function TrainView() {
     imageSize: 640,
     augmentation: 'Mosaic + flip',
   });
-  const [jobId, setJobId] = useState<string | null>(null);
-
   const logEndRef = useRef<HTMLDivElement>(null);
-  const totalImages = images.length;
-  const trainCount = Math.floor(totalImages * 0.8);
-  const valCount = Math.floor(totalImages * 0.1);
-  const testCount = totalImages - trainCount - valCount;
+
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [trainingMetrics]);
 
-  // useEffect(() => {
-  //   if (!isTraining) return;
-
-  //   const interval = setInterval(() => {
-  //     setTrainingMetrics((prev) => {
-  //       if (prev.length >= config.epochs) {
-  //         setIsTraining(false);
-  //         addToast('Training completed successfully!', 'success');
-  //         return prev;
-  //       }
-
-  //       const epoch = prev.length + 1;
-  //       const newMetric = {
-  //         epoch,
-  //         loss: Math.max(0.1, 1.0 - epoch * 0.018 + Math.random() * 0.05),
-  //         acc: Math.min(0.98, 0.5 + epoch * 0.008 + Math.random() * 0.02),
-  //         f1: Math.min(0.98, 0.5 + epoch * 0.008 + Math.random() * 0.02),
-  //       };
-  //       return [...prev, newMetric];
-  //     });
-  //   }, 500);
-
-  //   return () => clearInterval(interval);
-  // }, [isTraining, config.epochs, setIsTraining, setTrainingMetrics, addToast]);
-  // Replace the fake simulation useEffect
-// Replace the fake simulation useEffect
   useEffect(() => {
-    if (!isTraining || !currentProject?.id) return;
+    if (!isTraining) return;
 
-    const token = localStorage.getItem('access_token');
-
-    const interval = setInterval(async () => {
-      try {
-        const res = await fetch(`/api/projects/${currentProject.id}/train/status`, {
-          headers: { 'Authorization': `Bearer ${token}` },
-        });
-        const data = await res.json();
-        console.log('polling response:', data);  // ← add here
-
-        if (data.progress?.length) {
-          const mapped = data.progress.map((p: any) => ({
-            epoch: p.epoch,
-            loss: p.loss ?? 0,
-            acc: p.map50 ?? 0,
-            f1: p.precision ?? 0,
-          }));
-          setTrainingMetrics(mapped);
-        }
-
-        if (data.status === 'done') {
+    const interval = setInterval(() => {
+      setTrainingMetrics((prev) => {
+        if (prev.length >= config.epochs) {
           setIsTraining(false);
-          clearInterval(interval);
           addToast('Training completed successfully!', 'success');
-        } else if (data.status === 'failed') {
-          setIsTraining(false);
-          clearInterval(interval);
-          addToast(data.config?.error || 'Training failed', 'error');
+          return prev;
         }
-      } catch {
-        // network blip — keep polling
-      }
-    }, 3000);
+
+        const epoch = prev.length + 1;
+        const newMetric = {
+          epoch,
+          loss: Math.max(0.1, 1.0 - epoch * 0.018 + Math.random() * 0.05),
+          acc: Math.min(0.98, 0.5 + epoch * 0.008 + Math.random() * 0.02),
+          f1: Math.min(0.98, 0.5 + epoch * 0.008 + Math.random() * 0.02),
+        };
+        return [...prev, newMetric];
+      });
+    }, 500);
 
     return () => clearInterval(interval);
-  }, [isTraining, currentProject?.id]);
+  }, [isTraining, config.epochs, setIsTraining, setTrainingMetrics, addToast]);
 
   const handleStartTraining = async () => {
     if (!currentProject?.id) {
@@ -143,7 +98,6 @@ export function TrainView() {
       }
 
       // Job is queued — now let the fake simulation run as normal
-      setJobId(data.job_id);
       setTrainingMetrics([]);
       setIsTraining(true);
       addToast('Training started', 'success');
@@ -153,29 +107,11 @@ export function TrainView() {
     }
   };
 
-  // const handleStop = () => {
-  //   setIsTraining(false);
-  //   addToast('Training stopped', 'info');
-  // };
+  const handleStop = () => {
+    setIsTraining(false);
+    addToast('Training stopped', 'info');
+  };
 
-  const handleStop = async () => {
-      if (!currentProject?.id) return;
-
-      const token = localStorage.getItem('access_token');
-
-      try {
-        await fetch(`/api/projects/${currentProject.id}/train/cancel`, {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${token}` },
-        });
-      } catch {
-        // best effort
-      }
-
-      setIsTraining(false);
-      setJobId(null);
-      addToast('Training stopped', 'info');
- };
   const metrics = trainingMetrics[trainingMetrics.length - 1];
 
   return (
@@ -278,7 +214,7 @@ export function TrainView() {
             </div>
           </Panel>
 
-          {/* <Panel title="Dataset split" className='font-headline'>
+          <Panel title="Dataset split" className='font-headline'>
             <div className="flex flex-col text-sm px-2 font-sans">
               <div className="flex justify-between items-center py-3 border-b border-border/50">
                 <span className="font-medium text-foreground">Train</span>
@@ -293,25 +229,7 @@ export function TrainView() {
                 <span className="text-foreground">10 images (10%)</span>
               </div>
             </div>
-          </Panel> */}
-
-
-          <Panel title="Dataset split" className='font-headline'>
-            <div className="flex flex-col text-sm px-2 font-sans">
-            <div className="flex justify-between items-center py-3 border-b border-border/50">
-              <span className="font-medium text-foreground">Train</span>
-              <span className="text-foreground">{trainCount} images (80%)</span>
-            </div>
-            <div className="flex justify-between items-center py-3 border-b border-border/50">
-              <span className="font-medium text-foreground">Validation</span>
-              <span className="text-foreground">{valCount} images (10%)</span>
-            </div>
-            <div className="flex justify-between items-center py-3">
-              <span className="font-medium text-foreground">Test</span>
-              <span className="text-foreground">{testCount} images (10%)</span>
-            </div>
-          </div>
-        </Panel>
+          </Panel>
 
           <div className="flex gap-2 pt-2">
             <Button
@@ -334,7 +252,7 @@ export function TrainView() {
         {/* Metrics */}
         <div className="space-y-4 lg:col-span-2">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {/* <StatCard
+            <StatCard
               label="Epoch"
               value={trainingMetrics.length}
               subtext={`of ${config.epochs}`}
@@ -353,27 +271,7 @@ export function TrainView() {
               label="F1 Score"
               value={metrics ? metrics.f1.toFixed(3) : "0.000"}
               subtext="Model performance"
-            /> */}
-            <StatCard
-                label="Epoch"
-                value={trainingMetrics.length}
-                subtext={`of ${config.epochs}`}
-              />
-              <StatCard
-                label="Loss"
-                value={metrics ? metrics.loss.toFixed(4) : "0.0000"}
-                subtext="Lower is better"
-              />
-              <StatCard
-                label="mAP50"
-                value={metrics ? `${(metrics.acc * 100).toFixed(1)}%` : "0.0%"}
-                subtext="Validation accuracy"
-              />
-              <StatCard
-                label="Precision"
-                value={metrics ? metrics.f1.toFixed(3) : "0.000"}
-                subtext="Model performance"
-              />
+            />
           </div>
 
           {/* Progress Bar */}
@@ -430,12 +328,12 @@ export function TrainView() {
               {trainingMetrics.length === 0 && !isTraining && (
                 <div className="text-muted-foreground font-mono text-sm">System ready. Waiting to start training...</div>
               )}
-              {trainingMetrics.map((m,idx) => (
-                <div key={idx} className="text-zinc-300 font-mono text-[13px] leading-tight">
-                  <span className="text-zinc-500">INFO</span> Epoch {m.epoch}/{config.epochs}
+              {trainingMetrics.map((m) => (
+                <div key={m.epoch} className="text-zinc-300 font-mono text-[13px] leading-tight">
+                  <span className="text-zinc-500">INFO</span> Epoch {m.epoch}/{config.epochs} 
                   {' • '}loss: <span className="text-amber-500">{m.loss.toFixed(4)}</span>
-                  {' • '}mAP50: <span className="text-blue-400">{m.acc.toFixed(4)}</span>
-                  {' • '}recall: <span className="text-indigo-400">{m.f1.toFixed(4)}</span>
+                  {' • '}accuracy: <span className="text-blue-400">{m.acc.toFixed(4)}</span>
+                  {' • '}f1: <span className="text-indigo-400">{m.f1.toFixed(4)}</span>
                 </div>
               ))}
               {isTraining && (

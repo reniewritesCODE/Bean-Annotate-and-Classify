@@ -1,0 +1,21 @@
+path: /app/datasets/pokemon_e3695b06
+train: train/images
+val: val/images
+test: test/images
+names:
+  0: Full Black
+  1: Full Sour
+  2: Fungus Damage
+  3: Severe Insect Damage
+  4: Foreign Matter
+  5: Dried Cherry/Pod
+  6: Partial Black
+  7: Partial Sour
+  8: Hull/Husk
+  9: Parchment/Pergamino
+  10: Slight Insect Damage
+  11: Floater
+  12: Immature/Unripe
+  13: Withered
+  14: Shell
+  15: Broken/Chipped/Cut
