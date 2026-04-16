@@ -13,26 +13,10 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
-import { Zap, Pause2, Square } from 'lucide-react';
-import { Slider } from '@/components/ui/slider';
-import { Checkbox } from '@/components/ui/checkbox';
-import { AugmentationPreview } from '@/components/AugmentationPreview';
+import { Zap, Pause2, Square, Layers } from 'lucide-react';
 import { TrainingHistory } from '@/components/TrainingHistory';
 import { MetricsComparison } from '@/components/MetricsComparison';
-
-interface AugmentationOptions {
-  flip: boolean;
-  rotate90: boolean;
-  crop: boolean;
-  rotation: boolean;
-  shear: boolean;
-  brightness: boolean;
-  exposure: boolean;
-  blur: boolean;
-  noise: boolean;
-  motionBlur: boolean;
-  cameraGain: boolean;
-}
+import Link from 'next/link';
 
 interface TrainConfig {
   model: string;
@@ -40,72 +24,22 @@ interface TrainConfig {
   batchSize: number;
   learningRate: number;
   imageSize: number;
-  preprocessing: {
-    autoOrient: boolean;
-  };
-  augmentations: AugmentationOptions;
 }
 
 export function TrainView() {
-  const { isTraining, setIsTraining, trainingMetrics, setTrainingMetrics, addToast, currentProject, images } = useApp();
+  const { isTraining, setIsTraining, trainingMetrics, setTrainingMetrics, addToast, currentProject } = useApp();
   const [config, setConfig] = useState<TrainConfig>({
     model: 'YOLOv8n (global base)',
     epochs: 50,
     batchSize: 16,
     learningRate: 0.0001,
     imageSize: 640,
-    preprocessing: {
-      autoOrient: true,
-    },
-    augmentations: {
-      flip: true,
-      rotate90: false,
-      crop: false,
-      rotation: false,
-      shear: false,
-      brightness: false,
-      exposure: false,
-      blur: false,
-      noise: false,
-      motionBlur: false,
-      cameraGain: false,
-    },
   });
   const [jobId, setJobId] = useState<string | null>(null);
   const [compareJobs, setCompareJobs] = useState<any[]>([]);
   const [showComparison, setShowComparison] = useState(false);
 
-  // Dataset split state (percentages must sum to 100)
-  const [trainSplit, setTrainSplit] = useState<number>(70);
-  const [valSplit, setValSplit] = useState<number>(20);
-  const [testSplit, setTestSplit] = useState<number>(10);
-
   const logEndRef = useRef<HTMLDivElement>(null);
-  const totalImages = images.length;
-  const trainCount = Math.floor(totalImages * (trainSplit / 100));
-  const valCount = Math.floor(totalImages * (valSplit / 100));
-  const testCount = totalImages - trainCount - valCount;
-
-  // Handle train split change - adjusts val/test proportionally
-  const handleTrainSplitChange = (value: number[]) => {
-    const newTrain = Math.min(95, Math.max(50, value[0]));
-    const remaining = 100 - newTrain;
-    const currentValRatio = valSplit / (valSplit + testSplit);
-    const newVal = Math.round(remaining * currentValRatio);
-    const newTest = remaining - newVal;
-    setTrainSplit(newTrain);
-    setValSplit(newVal);
-    setTestSplit(newTest);
-  };
-
-  // Handle val split change - adjusts test accordingly
-  const handleValSplitChange = (value: number[]) => {
-    const maxVal = 100 - trainSplit - 1; // Keep at least 1% for test
-    const newVal = Math.min(maxVal, Math.max(1, value[0]));
-    const newTest = 100 - trainSplit - newVal;
-    setValSplit(newVal);
-    setTestSplit(newTest);
-  };
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [trainingMetrics]);
@@ -195,13 +129,8 @@ export function TrainView() {
           epochs: config.epochs,
           imgsz: config.imageSize,
           batch: config.batchSize,
-          splits: {
-            train: trainSplit,
-            val: valSplit,
-            test: testSplit,
-          },
-          preprocessing: config.preprocessing,
-          augmentations: config.augmentations,
+          learning_rate: config.learningRate,
+          model: config.model,
         }),
       });
 
@@ -212,7 +141,6 @@ export function TrainView() {
         return;
       }
 
-      // Job is queued — now let the fake simulation run as normal
       setJobId(data.job_id);
       setTrainingMetrics([]);
       setIsTraining(true);
@@ -257,68 +185,9 @@ export function TrainView() {
   return (
     <div className="p-4 space-y-4">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-4">
-        {/* Left Column: Configuration & Data Split */}
+        {/* Left Column: Training Hyperparameters */}
         <div className="flex flex-col gap-4">
-          <Panel title="Dataset split" className='font-headline'>
-            <div className="flex flex-col text-sm px-2 font-sans gap-4 py-2">
-              {/* Train Split */}
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="font-medium text-foreground">Train</span>
-                  <span className="text-foreground">{trainCount} images ({trainSplit}%)</span>
-                </div>
-                <Slider
-                  value={[trainSplit]}
-                  onValueChange={handleTrainSplitChange}
-                  min={50}
-                  max={95}
-                  step={1}
-                  disabled={isTraining}
-                  className="w-full"
-                />
-              </div>
-
-              {/* Validation Split */}
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="font-medium text-foreground">Validation</span>
-                  <span className="text-foreground">{valCount} images ({valSplit}%)</span>
-                </div>
-                <Slider
-                  value={[valSplit]}
-                  onValueChange={handleValSplitChange}
-                  min={1}
-                  max={100 - trainSplit - 1}
-                  step={1}
-                  disabled={isTraining}
-                  className="w-full"
-                />
-              </div>
-
-              {/* Test Split (read-only display) */}
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="font-medium text-foreground">Test</span>
-                  <span className="text-foreground">{testCount} images ({testSplit}%)</span>
-                </div>
-                <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-muted-foreground/30 rounded-full"
-                    style={{ width: `${testSplit}%` }}
-                  />
-                </div>
-              </div>
-
-              <div className="pt-2 border-t border-border/50">
-                <div className="flex justify-between items-center text-xs text-muted-foreground">
-                  <span>Total images</span>
-                  <span>{totalImages}</span>
-                </div>
-              </div>
-            </div>
-          </Panel>
-
-          <Panel title="Configuration" className="font-headline">
+          <Panel title="Training Configuration" className="font-headline">
             <div className="flex flex-col text-sm px-2 font-sans">
               <div className="flex justify-between items-center py-2 border-b border-border/50">
                 <span className="font-medium text-foreground">Base model</span>
@@ -362,7 +231,7 @@ export function TrainView() {
                 />
               </div>
 
-              <div className="flex justify-between items-center py-3 border-b border-border/50">
+              <div className="flex justify-between items-center py-3">
                 <span className="font-medium text-foreground">Image size</span>
                 <select
                   value={config.imageSize}
@@ -375,75 +244,40 @@ export function TrainView() {
                   <option value={1280}>1280</option>
                 </select>
               </div>
-
-              {/* Preprocessing */}
-              <div className="py-3 border-b border-border/50">
-                <div className="font-medium text-foreground mb-2">Preprocessing</div>
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    id="auto-orient"
-                    checked={config.preprocessing.autoOrient}
-                    onCheckedChange={(checked) =>
-                      setConfig({
-                        ...config,
-                        preprocessing: { ...config.preprocessing, autoOrient: checked as boolean },
-                      })
-                    }
-                    disabled={isTraining}
-                  />
-                  <label htmlFor="auto-orient" className="text-sm text-foreground cursor-pointer">
-                    Auto-orient images (fix EXIF rotation)
-                  </label>
-                </div>
-              </div>
-
-              {/* Augmentations */}
-              <div className="py-3">
-                <div className="font-medium text-foreground mb-3">Augmentations</div>
-                <div className="grid grid-cols-2 gap-2">
-                  {[
-                    { key: 'flip', label: 'Flip' },
-                    { key: 'rotate90', label: '90° Rotate' },
-                    { key: 'crop', label: 'Crop' },
-                    { key: 'rotation', label: 'Rotation' },
-                    { key: 'shear', label: 'Shear' },
-                    { key: 'brightness', label: 'Brightness' },
-                    { key: 'exposure', label: 'Exposure' },
-                    { key: 'blur', label: 'Blur' },
-                    { key: 'noise', label: 'Noise' },
-                    { key: 'motionBlur', label: 'Motion Blur' },
-                    { key: 'cameraGain', label: 'Camera Gain' },
-                  ].map(({ key, label }) => (
-                    <div key={key} className="flex items-center gap-2">
-                      <Checkbox
-                        id={`aug-${key}`}
-                        checked={config.augmentations[key as keyof AugmentationOptions]}
-                        onCheckedChange={(checked) =>
-                          setConfig({
-                            ...config,
-                            augmentations: { ...config.augmentations, [key]: checked as boolean },
-                          })
-                        }
-                        disabled={isTraining}
-                      />
-                      <label htmlFor={`aug-${key}`} className="text-sm text-foreground cursor-pointer">
-                        {label}
-                      </label>
-                    </div>
-                  ))}
-                </div>
-              </div>
             </div>
           </Panel>
 
-          <AugmentationPreview 
-            augmentations={config.augmentations}
-            imageSize={config.imageSize}
-            projectId={currentProject?.id}
-          />
-
-
-          
+          {/* Dataset Version Info */}
+          <Panel title="Dataset Version" className="font-headline">
+            <div className="p-4 text-sm text-muted-foreground">
+              <p className="mb-3">
+                Configure dataset splits, preprocessing, and augmentations in the 
+                <Link 
+                  href={`/projects/${currentProject?.id}/versions`}
+                  className="text-primary hover:underline inline-flex items-center gap-1 mx-1"
+                >
+                  <Layers className="w-3 h-3" />
+                  Versions
+                </Link>
+                page before training.
+              </p>
+              <div className="flex gap-2">
+                <Link
+                  href={`/projects/${currentProject?.id}/versions`}
+                  className="flex-1"
+                >
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    disabled={!currentProject?.id}
+                  >
+                    <Layers className="w-4 h-4 mr-2" />
+                    Go to Versions
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </Panel>
 
           <div className="flex gap-2 pt-2">
             <Button
