@@ -16,6 +16,9 @@ import {
 import { Zap, Pause2, Square } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 import { Checkbox } from '@/components/ui/checkbox';
+import { AugmentationPreview } from '@/components/AugmentationPreview';
+import { TrainingHistory } from '@/components/TrainingHistory';
+import { MetricsComparison } from '@/components/MetricsComparison';
 
 interface AugmentationOptions {
   flip: boolean;
@@ -69,6 +72,8 @@ export function TrainView() {
     },
   });
   const [jobId, setJobId] = useState<string | null>(null);
+  const [compareJobs, setCompareJobs] = useState<any[]>([]);
+  const [showComparison, setShowComparison] = useState(false);
 
   // Dataset split state (percentages must sum to 100)
   const [trainSplit, setTrainSplit] = useState<number>(70);
@@ -241,6 +246,12 @@ export function TrainView() {
       setJobId(null);
       addToast('Training stopped', 'info');
  };
+
+  const handleCompare = (jobs: any[]) => {
+    setCompareJobs(jobs);
+    setShowComparison(true);
+  };
+
   const metrics = trainingMetrics[trainingMetrics.length - 1];
 
   return (
@@ -425,22 +436,11 @@ export function TrainView() {
             </div>
           </Panel>
 
-          {/* <Panel title="Dataset split" className='font-headline'>
-            <div className="flex flex-col text-sm px-2 font-sans">
-              <div className="flex justify-between items-center py-3 border-b border-border/50">
-                <span className="font-medium text-foreground">Train</span>
-                <span className="text-foreground">83 images (80%)</span>
-              </div>
-              <div className="flex justify-between items-center py-3 border-b border-border/50">
-                <span className="font-medium text-foreground">Validation</span>
-                <span className="text-foreground">11 images (10%)</span>
-              </div>
-              <div className="flex justify-between items-center py-3">
-                <span className="font-medium text-foreground">Test</span>
-                <span className="text-foreground">10 images (10%)</span>
-              </div>
-            </div>
-          </Panel> */}
+          <AugmentationPreview 
+            augmentations={config.augmentations}
+            imageSize={config.imageSize}
+            projectId={currentProject?.id}
+          />
 
 
           
@@ -591,6 +591,22 @@ export function TrainView() {
           </Panel>
         </div>
       </div>
+
+      {/* Training History Section */}
+      <div className="mt-8">
+        <TrainingHistory 
+          projectId={currentProject?.id}
+          onCompare={handleCompare}
+        />
+      </div>
+
+      {/* Metrics Comparison Modal */}
+      {showComparison && (
+        <MetricsComparison 
+          jobs={compareJobs}
+          onClose={() => setShowComparison(false)}
+        />
+      )}
     </div>
   );
 }
