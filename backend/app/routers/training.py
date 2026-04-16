@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from app.database import get_db
-from app.models import TrainingJob, ModelVersion, Project
+from app.models import TrainingJob, ModelVersion, Project, Image, Annotation
 from app.auth import get_current_user
 from app.tasks import train_model_task
 from pydantic import BaseModel
@@ -15,10 +16,34 @@ import uuid
 router = APIRouter(prefix="/api/projects", tags=["training"])
 
 
+class SplitConfig(BaseModel):
+    train: int = 80  # percentage
+    val: int = 10
+    test: int = 10
+
+class PreprocessingConfig(BaseModel):
+    autoOrient: bool = True
+
+class AugmentationConfig(BaseModel):
+    flip: bool = True
+    rotate90: bool = False
+    crop: bool = False
+    rotation: bool = False
+    shear: bool = False
+    brightness: bool = False
+    exposure: bool = False
+    blur: bool = False
+    noise: bool = False
+    motionBlur: bool = False
+    cameraGain: bool = False
+
 class TrainRequest(BaseModel):
     epochs: Optional[int] = 50
     imgsz: Optional[int] = 640
     batch: Optional[int] = 16
+    splits: Optional[SplitConfig] = SplitConfig()
+    preprocessing: Optional[PreprocessingConfig] = PreprocessingConfig()
+    augmentations: Optional[AugmentationConfig] = AugmentationConfig()
 
 
 @router.post("/{project_id}/train")
@@ -36,6 +61,67 @@ def start_training(
     base_model = db.query(ModelVersion).filter(ModelVersion.is_base == True).first()
     if not base_model:
         raise HTTPException(status_code=404, detail="No base model found. Seed one first.")
+
+    # ─── Pre-training Validation ──────────────────────────────────────────────
+    # 1. Check minimum image count (at least 10 images per class, 16 classes = 160)
+    total_images = db.query(Image).filter(Image.project_id == project_id).count()
+    MIN_IMAGES = 10  # Minimum total images required
+    if total_images < MIN_IMAGES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Insufficient training data. Project has {total_images} images, minimum {MIN_IMAGES} required."
+        )
+
+    # 2. Check at least one augmentation is enabled
+    aug = body.augmentations
+    any_augmentation_enabled = any([
+        aug.flip, aug.rotate90, aug.crop, aug.rotation, aug.shear,
+        aug.brightness, aug.exposure, aug.blur, aug.noise,
+        aug.motionBlur, aug.cameraGain
+    ]) if aug else False
+    if not any_augmentation_enabled:
+        raise HTTPException(
+            status_code=400,
+            detail="At least one augmentation must be enabled for training."
+        )
+
+    # 3. Validate split percentages sum to 100
+    splits = body.splits
+    total_split = splits.train + splits.val + splits.test
+    if total_split != 100:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Split percentages must sum to 100, got {total_split}."
+        )
+
+    # 4. Check minimum images per split
+    train_count = int(total_images * splits.train / 100)
+    val_count = int(total_images * splits.val / 100)
+    if train_count < 10:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Train split too small: {train_count} images. Minimum 10 required."
+        )
+    if val_count < 2:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Validation split too small: {val_count} images. Minimum 2 required."
+        )
+
+    # 5. Check images have annotations
+    annotated_count = (
+        db.query(Image)
+        .join(Annotation, Image.id == Annotation.image_id)
+        .filter(Image.project_id == project_id)
+        .distinct()
+        .count()
+    )
+    if annotated_count == 0:
+        raise HTTPException(
+            status_code=400,
+            detail="No annotated images found. Please annotate images before training."
+        )
+    # ───────────────────────────────────────────────────────────────────────────
 
     # Create the job record
     job = TrainingJob(

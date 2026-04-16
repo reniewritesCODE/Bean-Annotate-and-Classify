@@ -9,7 +9,7 @@ BASE_MODEL_PATH = "models/base/robusta_base.pt"
 RUNS_DIR = "models/runs"
 PROGRESS_DIR = "models/progress"
 
-def run_training(dataset_path: str, job_id: str, epochs=50, imgsz=640, batch=16) -> dict:
+def run_training(dataset_path: str, job_id: str, epochs=50, imgsz=640, batch=16, augmentations: dict = None) -> dict:
     from ultralytics import YOLO
 
     os.makedirs(PROGRESS_DIR, exist_ok=True)
@@ -45,6 +45,21 @@ def run_training(dataset_path: str, job_id: str, epochs=50, imgsz=640, batch=16)
     if not os.path.exists(data_yaml):
         raise FileNotFoundError(f"data.yaml not found at {data_yaml}")
 
+    # Build augmentation hyperparameters from config
+    aug = augmentations or {}
+    hsv_h = 0.015 if aug.get('brightness', False) else 0.0  # HSV-Hue
+    hsv_s = 0.7 if aug.get('exposure', False) else 0.0      # HSV-Saturation
+    hsv_v = 0.4 if aug.get('cameraGain', False) else 0.0    # HSV-Value
+    degrees = 10.0 if aug.get('rotation', False) else 0.0  # Rotation
+    translate = 0.1 if aug.get('crop', False) else 0.0       # Translation (crop-like)
+    scale = 0.5 if aug.get('shear', False) else 0.0         # Scale/Shear
+    shear = 2.0 if aug.get('shear', False) else 0.0         # Shear degrees
+    flipud = 0.5 if aug.get('flip', False) else 0.0         # Vertical flip
+    fliplr = 0.5 if aug.get('flip', False) else 0.0         # Horizontal flip
+    # Additional augmentations via albumentations-style
+    mosaic = 1.0  # Always use mosaic for YOLO
+    mixup = 0.0
+
     results = model.train(
         data=data_yaml,
         epochs=epochs,
@@ -54,6 +69,22 @@ def run_training(dataset_path: str, job_id: str, epochs=50, imgsz=640, batch=16)
         name=job_id,
         exist_ok=True,
         verbose=False,
+        # Augmentation hyperparameters
+        hsv_h=hsv_h,
+        hsv_s=hsv_s,
+        hsv_v=hsv_v,
+        degrees=degrees,
+        translate=translate,
+        scale=scale,
+        shear=shear,
+        flipud=flipud,
+        fliplr=fliplr,
+        mosaic=mosaic,
+        mixup=mixup,
+        # Disable built-in if not using
+        copy_paste=0.0,
+        erasing=0.0,
+        auto_augment=None if not any([aug.get('blur', False), aug.get('noise', False)]) else "randaugment",
     )
 
     return {

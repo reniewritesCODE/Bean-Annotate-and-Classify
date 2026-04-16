@@ -195,6 +195,8 @@ export function TrainView() {
             val: valSplit,
             test: testSplit,
           },
+          preprocessing: config.preprocessing,
+          augmentations: config.augmentations,
         }),
       });
 

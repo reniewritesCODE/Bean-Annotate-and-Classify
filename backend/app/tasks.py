@@ -15,17 +15,27 @@ def train_model_task(self, job_id: str, project_id: str, config: dict):
         job.status = "running"
         db.commit()
 
-        # Step 1: Export dataset
-        exporter = DatasetExporter(db)
-        dataset_path = exporter.export_project(project_id)
+        # Extract configs
+        splits_config = config.get("splits", {"train": 80, "val": 10, "test": 10})
+        preprocessing_config = config.get("preprocessing", {"autoOrient": True})
+        augmentations_config = config.get("augmentations", {})
 
-        # Step 2: Run YOLO training
+        # Step 1: Export dataset with custom splits and preprocessing
+        exporter = DatasetExporter(db)
+        dataset_path = exporter.export_project(
+            project_id,
+            splits_config=splits_config,
+            preprocessing_config=preprocessing_config
+        )
+
+        # Step 2: Run YOLO training with augmentation config
         metrics = run_training(
             dataset_path=dataset_path,
             job_id=job_id,
             epochs=config.get("epochs", 50),
             imgsz=config.get("imgsz", 640),
             batch=config.get("batch", 16),
+            augmentations=augmentations_config,
         )
 
         # Step 3: Mark done + save metrics

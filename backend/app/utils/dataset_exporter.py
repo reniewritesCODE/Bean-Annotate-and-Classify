@@ -6,6 +6,8 @@ from sqlalchemy.orm import Session
 from app.models import Project, Image, Annotation
 from app.utils.s3_utils import s3_client, S3_BUCKET
 import random
+from PIL import Image as PILImage
+from PIL import ExifTags
 
 # List of classes as defined in frontend/lib/constants.ts
 # These must match exactly for YOLO to be consistent with the UI
@@ -33,7 +35,15 @@ class DatasetExporter:
         self.db = db
         self.base_path = base_path
 
-    def export_project(self, project_id: str):
+    def export_project(self, project_id: str, splits_config: dict = None, preprocessing_config: dict = None):
+        """
+        Export project dataset with custom splits and preprocessing.
+        
+        Args:
+            project_id: Project ID to export
+            splits_config: Dict with 'train', 'val', 'test' percentages (e.g., {'train': 70, 'val': 20, 'test': 10})
+            preprocessing_config: Dict with 'autoOrient' boolean
+        """
         project = self.db.query(Project).filter(Project.id == project_id).first()
         if not project:
             raise Exception("Project not found")
@@ -56,11 +66,19 @@ class DatasetExporter:
         # Fetch all images for this project
         images = self.db.query(Image).filter(Image.project_id == project_id).all()
         
-        # Simple random split (80/10/10)
+        # Use custom splits or default to 80/10/10
+        if splits_config:
+            train_pct = splits_config.get('train', 80) / 100
+            val_pct = splits_config.get('val', 10) / 100
+        else:
+            train_pct = 0.8
+            val_pct = 0.1
+        
+        # Apply custom split
         random.shuffle(images)
         total = len(images)
-        train_end = int(total * 0.8)
-        val_end = train_end + int(total * 0.1)
+        train_end = int(total * train_pct)
+        val_end = train_end + int(total * val_pct)
 
         for i, img in enumerate(images):
             if i < train_end:
@@ -70,14 +88,14 @@ class DatasetExporter:
             else:
                 split = 'test'
             
-            self._export_image(img, project_dir, split)
+            self._export_image(img, project_dir, split, preprocessing_config)
 
         # Generate data.yaml
         self._generate_yaml(project_dir, project_name_safe)
         
         return project_dir
 
-    def _export_image(self, img: Image, project_dir: str, split: str):
+    def _export_image(self, img: Image, project_dir: str, split: str, preprocessing_config: dict = None):
         # 1. Download image from MinIO
         img_extension = img.s3_key.split('.')[-1]
         img_filename = f"{img.id}.{img_extension}"
@@ -89,7 +107,14 @@ class DatasetExporter:
             print(f"Failed to download {img.s3_key}: {e}")
             return
 
-        # 2. Generate .txt label file
+        # 2. Apply preprocessing (auto-orient)
+        if preprocessing_config and preprocessing_config.get('autoOrient', True):
+            try:
+                self._apply_auto_orient(local_img_path)
+            except Exception as e:
+                print(f"Failed to auto-orient {img.s3_key}: {e}")
+
+        # 3. Generate .txt label file
         label_filename = f"{img.id}.txt"
         local_label_path = os.path.join(project_dir, split, 'labels', label_filename)
         
@@ -101,6 +126,36 @@ class DatasetExporter:
                 # DB class_id is 1-indexed, YOLO is 0-indexed
                 yolo_class = ann.class_id - 1
                 f.write(f"{yolo_class} {ann.x_center} {ann.y_center} {ann.width} {ann.height}\n")
+
+    def _apply_auto_orient(self, image_path: str):
+        """Fix image orientation based on EXIF data."""
+        try:
+            with PILImage.open(image_path) as img:
+                # Check for EXIF orientation
+                try:
+                    for orientation in ExifTags.TAGS.keys():
+                        if ExifTags.TAGS[orientation] == 'Orientation':
+                            break
+                    
+                    exif = img._getexif()
+                    if exif is not None and orientation in exif:
+                        orientation_value = exif[orientation]
+                        
+                        # Apply rotation based on orientation value
+                        if orientation_value == 3:
+                            img = img.rotate(180, expand=True)
+                        elif orientation_value == 6:
+                            img = img.rotate(270, expand=True)
+                        elif orientation_value == 8:
+                            img = img.rotate(90, expand=True)
+                        
+                        # Save the corrected image
+                        img.save(image_path, quality=95)
+                except (AttributeError, KeyError, IndexError):
+                    # No EXIF data or no orientation tag
+                    pass
+        except Exception as e:
+            print(f"Error auto-orienting image {image_path}: {e}")
 
     def _generate_yaml(self, project_dir: str, project_name: str):
         data = {
