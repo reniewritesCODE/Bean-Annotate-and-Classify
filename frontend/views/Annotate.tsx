@@ -661,7 +661,7 @@ export function AnnotateView() {
               disabled={isExporting || !currentImage}
               className="w-full py-2 px-3 bg-yellow-500 text-black text-sm font-semibold rounded hover:bg-yellow-600 transition-colors disabled:opacity-50"
             >
-              {isExporting ? 'Exporting...' : 'Proceed to Train →'}
+              {isExporting ? 'Exporting...' : 'Proceed to Train'}
             </button>
           </div>
 
