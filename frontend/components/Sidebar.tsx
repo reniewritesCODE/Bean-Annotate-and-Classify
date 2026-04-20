@@ -12,6 +12,7 @@ import {
   LogOut,
   User as UserIcon,
   Users as UsersIcon,
+  GitBranch,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
@@ -227,6 +228,7 @@ export function ProjectSidebar() {
     { id: 'dashboard', path: `/projects/${projectId}`, label: 'Project dashboard', icon: LayoutDashboard },
     { id: 'upload', path: `/projects/${projectId}/upload`, label: 'Upload', icon: Upload },
     { id: 'annotate', path: `/projects/${projectId}/annotate`, label: 'Annotate', icon: Edit3 },
+    { id: 'versions', path: `/projects/${projectId}/versions`, label: 'Versions', icon: GitBranch },
     { id: 'train', path: `/projects/${projectId}/train`, label: 'Train Model', icon: Zap },
     { id: 'review', path: `/projects/${projectId}/review`, label: 'Model Review', icon: CheckCircle },
     { id: 'registry', path: `/projects/${projectId}/registry`, label: 'Model Registry', icon: Database },

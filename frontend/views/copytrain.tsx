@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useApp } from '@/context/AppContext';
@@ -13,133 +14,59 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
-import { Zap, Pause2, Square, Layers } from 'lucide-react';
-import { TrainingHistory } from '@/components/TrainingHistory';
-import { MetricsComparison } from '@/components/MetricsComparison';
-import Link from 'next/link';
+import { Zap, Pause2, Square } from 'lucide-react';
 
 interface TrainConfig {
   model: string;
+  strategy: string;
   epochs: number;
   batchSize: number;
   learningRate: number;
   imageSize: number;
+  augmentation: string;
 }
 
 export function TrainView() {
   const { isTraining, setIsTraining, trainingMetrics, setTrainingMetrics, addToast, currentProject } = useApp();
   const [config, setConfig] = useState<TrainConfig>({
     model: 'YOLOv8n (global base)',
+    strategy: 'Fine-tuning',
     epochs: 50,
     batchSize: 16,
     learningRate: 0.0001,
     imageSize: 640,
+    augmentation: 'Mosaic + flip',
   });
-  const [jobId, setJobId] = useState<string | null>(null);
-  const [compareJobs, setCompareJobs] = useState<any[]>([]);
-  const [showComparison, setShowComparison] = useState(false);
-  const [versions, setVersions] = useState<any[]>([]);
-  const [selectedVersionId, setSelectedVersionId] = useState<string>('');
-
-  useEffect(() => {
-    if (!currentProject?.id) return;
-    const fetchVersions = async () => {
-      const token = localStorage.getItem('access_token');
-      try {
-        const res = await fetch(`/api/projects/${currentProject.id}/versions`, {
-          headers: { 'Authorization': `Bearer ${token}` },
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setVersions(data);
-          
-          // Use search params or default to first version
-          const params = new URLSearchParams(window.location.search);
-          const versionParam = params.get('version');
-          
-          if (versionParam && data.some((v: any) => v.id === versionParam)) {
-            setSelectedVersionId(versionParam);
-          } else if (data.length > 0) {
-            setSelectedVersionId(data[0].id);
-          }
-        }
-      } catch (err) {
-        console.error('Failed to fetch versions', err);
-      }
-    };
-    fetchVersions();
-  }, [currentProject?.id]);
-
   const logEndRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [trainingMetrics]);
 
-  // useEffect(() => {
-  //   if (!isTraining) return;
-
-  //   const interval = setInterval(() => {
-  //     setTrainingMetrics((prev) => {
-  //       if (prev.length >= config.epochs) {
-  //         setIsTraining(false);
-  //         addToast('Training completed successfully!', 'success');
-  //         return prev;
-  //       }
-
-  //       const epoch = prev.length + 1;
-  //       const newMetric = {
-  //         epoch,
-  //         loss: Math.max(0.1, 1.0 - epoch * 0.018 + Math.random() * 0.05),
-  //         acc: Math.min(0.98, 0.5 + epoch * 0.008 + Math.random() * 0.02),
-  //         f1: Math.min(0.98, 0.5 + epoch * 0.008 + Math.random() * 0.02),
-  //       };
-  //       return [...prev, newMetric];
-  //     });
-  //   }, 500);
-
-  //   return () => clearInterval(interval);
-  // }, [isTraining, config.epochs, setIsTraining, setTrainingMetrics, addToast]);
-  // Replace the fake simulation useEffect
-// Replace the fake simulation useEffect
   useEffect(() => {
-    if (!isTraining || !currentProject?.id) return;
+    if (!isTraining) return;
 
-    const token = localStorage.getItem('access_token');
-
-    const interval = setInterval(async () => {
-      try {
-        const res = await fetch(`/api/projects/${currentProject.id}/train/status`, {
-          headers: { 'Authorization': `Bearer ${token}` },
-        });
-        const data = await res.json();
-        console.log('polling response:', data);  // ← add here
-
-        if (data.progress?.length) {
-          const mapped = data.progress.map((p: any) => ({
-            epoch: p.epoch,
-            loss: p.loss ?? 0,
-            acc: p.map50 ?? 0,
-            f1: p.precision ?? 0,
-          }));
-          setTrainingMetrics(mapped);
-        }
-
-        if (data.status === 'done') {
+    const interval = setInterval(() => {
+      setTrainingMetrics((prev) => {
+        if (prev.length >= config.epochs) {
           setIsTraining(false);
-          clearInterval(interval);
           addToast('Training completed successfully!', 'success');
-        } else if (data.status === 'failed') {
-          setIsTraining(false);
-          clearInterval(interval);
-          addToast(data.config?.error || 'Training failed', 'error');
+          return prev;
         }
-      } catch {
-        // network blip — keep polling
-      }
-    }, 3000);
+
+        const epoch = prev.length + 1;
+        const newMetric = {
+          epoch,
+          loss: Math.max(0.1, 1.0 - epoch * 0.018 + Math.random() * 0.05),
+          acc: Math.min(0.98, 0.5 + epoch * 0.008 + Math.random() * 0.02),
+          f1: Math.min(0.98, 0.5 + epoch * 0.008 + Math.random() * 0.02),
+        };
+        return [...prev, newMetric];
+      });
+    }, 500);
 
     return () => clearInterval(interval);
-  }, [isTraining, currentProject?.id]);
+  }, [isTraining, config.epochs, setIsTraining, setTrainingMetrics, addToast]);
 
   const handleStartTraining = async () => {
     if (!currentProject?.id) {
@@ -160,9 +87,6 @@ export function TrainView() {
           epochs: config.epochs,
           imgsz: config.imageSize,
           batch: config.batchSize,
-          learning_rate: config.learningRate,
-          model: config.model,
-          version_id: selectedVersionId || undefined,
         }),
       });
 
@@ -173,7 +97,7 @@ export function TrainView() {
         return;
       }
 
-      setJobId(data.job_id);
+      // Job is queued — now let the fake simulation run as normal
       setTrainingMetrics([]);
       setIsTraining(true);
       addToast('Training started', 'success');
@@ -183,33 +107,9 @@ export function TrainView() {
     }
   };
 
-  // const handleStop = () => {
-  //   setIsTraining(false);
-  //   addToast('Training stopped', 'info');
-  // };
-
-  const handleStop = async () => {
-      if (!currentProject?.id) return;
-
-      const token = localStorage.getItem('access_token');
-
-      try {
-        await fetch(`/api/projects/${currentProject.id}/train/cancel`, {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${token}` },
-        });
-      } catch {
-        // best effort
-      }
-
-      setIsTraining(false);
-      setJobId(null);
-      addToast('Training stopped', 'info');
- };
-
-  const handleCompare = (jobs: any[]) => {
-    setCompareJobs(jobs);
-    setShowComparison(true);
+  const handleStop = () => {
+    setIsTraining(false);
+    addToast('Training stopped', 'info');
   };
 
   const metrics = trainingMetrics[trainingMetrics.length - 1];
@@ -217,13 +117,35 @@ export function TrainView() {
   return (
     <div className="p-4 space-y-4">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-4">
-        {/* Left Column: Training Hyperparameters */}
+        {/* Left Column: Configuration & Data Split */}
         <div className="flex flex-col gap-4">
-          <Panel title="Training Configuration" className="font-headline">
+          <Panel title="Configuration" className="font-headline">
             <div className="flex flex-col text-sm px-2 font-sans">
               <div className="flex justify-between items-center py-2 border-b border-border/50">
                 <span className="font-medium text-foreground">Base model</span>
-                <span className="text-foreground text-sm">{config.model}</span>
+                <select
+                  value={config.model}
+                  onChange={(e) => setConfig({ ...config, model: e.target.value })}
+                  disabled={isTraining}
+                  className="bg-transparent border border-border rounded-md px-3 py-1.5 min-w-[160px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                >
+                  <option>YOLOv8n (global base)</option>
+                  <option>YOLOv8s</option>
+                  <option>YOLOv8m</option>
+                </select>
+              </div>
+
+              <div className="flex justify-between items-center py-3 border-b border-border/50">
+                <span className="font-medium text-foreground">Strategy</span>
+                <select
+                  value={config.strategy}
+                  onChange={(e) => setConfig({ ...config, strategy: e.target.value })}
+                  disabled={isTraining}
+                  className="bg-transparent border border-border rounded-md px-3 py-1.5 min-w-[160px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                >
+                  <option>Fine-tuning</option>
+                  <option>Transfer Learning</option>
+                </select>
               </div>
 
               <div className="flex justify-between items-center py-3 border-b border-border/50">
@@ -263,7 +185,7 @@ export function TrainView() {
                 />
               </div>
 
-              <div className="flex justify-between items-center py-3">
+              <div className="flex justify-between items-center py-3 border-b border-border/50">
                 <span className="font-medium text-foreground">Image size</span>
                 <select
                   value={config.imageSize}
@@ -276,46 +198,36 @@ export function TrainView() {
                   <option value={1280}>1280</option>
                 </select>
               </div>
+
+              <div className="flex justify-between items-center py-3">
+                <span className="font-medium text-foreground">Augmentation</span>
+                <select
+                  value={config.augmentation}
+                  onChange={(e) => setConfig({ ...config, augmentation: e.target.value })}
+                  disabled={isTraining}
+                  className="bg-transparent border border-border rounded-md px-3 py-1.5 min-w-[160px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                >
+                  <option>Mosaic + flip</option>
+                  <option>Standard</option>
+                </select>
+              </div>
             </div>
           </Panel>
 
-          {/* Dataset Version Info */}
-          <Panel title="Dataset Version" className="font-headline">
+          <Panel title="Dataset split" className='font-headline'>
             <div className="flex flex-col text-sm px-2 font-sans">
-              <div className="flex flex-col gap-2 py-3 border-b border-border/50">
-                <span className="font-medium text-foreground">Select Version</span>
-                <select
-                  value={selectedVersionId}
-                  onChange={(e) => setSelectedVersionId(e.target.value)}
-                  disabled={isTraining || versions.length === 0}
-                  className="bg-transparent border border-border rounded-md px-3 py-2 w-full text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                >
-                  <option value="">-- No Version Selected --</option>
-                  {versions.map((v) => (
-                    <option key={v.id} value={v.id}>
-                      {v.name} ({v.train_split}/{v.val_split}/{v.test_split})
-                    </option>
-                  ))}
-                </select>
-                {versions.length === 0 && (
-                  <p className="text-xs text-muted-foreground mt-1 text-red-400">
-                    No versions found. Please create one first.
-                  </p>
-                )}
+              <div className="flex justify-between items-center py-3 border-b border-border/50">
+                <span className="font-medium text-foreground">Train</span>
+                <span className="text-foreground">83 images (80%)</span>
               </div>
-            </div>
-            <div className="p-4 text-sm text-muted-foreground">
-              <p className="mb-3">
-                Need a new configuration? Adjust dataset splits, preprocessing, and augmentations in the 
-                <Link 
-                  href={`/projects/${currentProject?.id}/versions`}
-                  className="text-primary hover:underline inline-flex items-center gap-1 mx-1"
-                >
-                  <Layers className="w-3 h-3" />
-                  Versions
-                </Link>
-                page.
-              </p>
+              <div className="flex justify-between items-center py-3 border-b border-border/50">
+                <span className="font-medium text-foreground">Validation</span>
+                <span className="text-foreground">11 images (10%)</span>
+              </div>
+              <div className="flex justify-between items-center py-3">
+                <span className="font-medium text-foreground">Test</span>
+                <span className="text-foreground">10 images (10%)</span>
+              </div>
             </div>
           </Panel>
 
@@ -340,7 +252,7 @@ export function TrainView() {
         {/* Metrics */}
         <div className="space-y-4 lg:col-span-2">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {/* <StatCard
+            <StatCard
               label="Epoch"
               value={trainingMetrics.length}
               subtext={`of ${config.epochs}`}
@@ -359,27 +271,7 @@ export function TrainView() {
               label="F1 Score"
               value={metrics ? metrics.f1.toFixed(3) : "0.000"}
               subtext="Model performance"
-            /> */}
-            <StatCard
-                label="Epoch"
-                value={trainingMetrics.length}
-                subtext={`of ${config.epochs}`}
-              />
-              <StatCard
-                label="Loss"
-                value={metrics ? metrics.loss.toFixed(4) : "0.0000"}
-                subtext="Lower is better"
-              />
-              <StatCard
-                label="mAP50"
-                value={metrics ? `${(metrics.acc * 100).toFixed(1)}%` : "0.0%"}
-                subtext="Validation accuracy"
-              />
-              <StatCard
-                label="Precision"
-                value={metrics ? metrics.f1.toFixed(3) : "0.000"}
-                subtext="Model performance"
-              />
+            />
           </div>
 
           {/* Progress Bar */}
@@ -436,12 +328,12 @@ export function TrainView() {
               {trainingMetrics.length === 0 && !isTraining && (
                 <div className="text-muted-foreground font-mono text-sm">System ready. Waiting to start training...</div>
               )}
-              {trainingMetrics.map((m,idx) => (
-                <div key={idx} className="text-zinc-300 font-mono text-[13px] leading-tight">
-                  <span className="text-zinc-500">INFO</span> Epoch {m.epoch}/{config.epochs}
+              {trainingMetrics.map((m) => (
+                <div key={m.epoch} className="text-zinc-300 font-mono text-[13px] leading-tight">
+                  <span className="text-zinc-500">INFO</span> Epoch {m.epoch}/{config.epochs} 
                   {' • '}loss: <span className="text-amber-500">{m.loss.toFixed(4)}</span>
-                  {' • '}mAP50: <span className="text-blue-400">{m.acc.toFixed(4)}</span>
-                  {' • '}recall: <span className="text-indigo-400">{m.f1.toFixed(4)}</span>
+                  {' • '}accuracy: <span className="text-blue-400">{m.acc.toFixed(4)}</span>
+                  {' • '}f1: <span className="text-indigo-400">{m.f1.toFixed(4)}</span>
                 </div>
               ))}
               {isTraining && (
@@ -465,22 +357,6 @@ export function TrainView() {
           </Panel>
         </div>
       </div>
-
-      {/* Training History Section */}
-      <div className="mt-8">
-        <TrainingHistory 
-          projectId={currentProject?.id}
-          onCompare={handleCompare}
-        />
-      </div>
-
-      {/* Metrics Comparison Modal */}
-      {showComparison && (
-        <MetricsComparison 
-          jobs={compareJobs}
-          onClose={() => setShowComparison(false)}
-        />
-      )}
     </div>
   );
 }

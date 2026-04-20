@@ -65,3 +65,12 @@ def delete_from_s3(s3_key: str) -> bool:
     except ClientError as e:
         print(f"Error deleting from S3: {e}")
         return False
+
+def get_file_from_s3(s3_key: str) -> Optional[bytes]:
+    """Download an object from S3 into memory."""
+    try:
+        response = s3_client.get_object(Bucket=S3_BUCKET, Key=s3_key)
+        return response['Body'].read()
+    except ClientError as e:
+        print(f"Error downloading from S3: {e}")
+        return None

@@ -6,8 +6,9 @@ import { drawCanvasImageAndBoxes, getImageFromCache } from '@/lib/canvas-utils';
 import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { BoundingBox } from '@/lib/types';
-import { Trash2, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { Trash2, ChevronLeft, ChevronRight, X, ArrowRight } from 'lucide-react';
 import { ScrollArea } from '@radix-ui/react-scroll-area';
+import { useRouter } from 'next/navigation';
 
 // ─── Reusable floating panel card ─────────────────────────────────────────────
 function Panel({
@@ -348,6 +349,7 @@ export function AnnotateView() {
   }, [autosaveSignature, currentImage, handleSave]);
 
   const [isExporting, setIsExporting] = useState(false);
+  const router = useRouter();
 
   const handleExport = async () => {
     if (!currentImage) return;
@@ -657,11 +659,12 @@ export function AnnotateView() {
             {/* Bottom Action Buttons */}
           <div className="p-4 border-t border-border space-y-2">
             <button 
-              onClick={handleExport}
-              disabled={isExporting || !currentImage}
-              className="w-full py-2 px-3 bg-yellow-500 text-black text-sm font-semibold rounded hover:bg-yellow-600 transition-colors disabled:opacity-50"
+              onClick={() => router.push(`/projects/${currentImage.project_id}/versions`)}
+              disabled={!currentImage}
+              className="w-full py-2 px-3 bg-yellow-500 text-black text-sm font-semibold rounded hover:bg-yellow-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
             >
-              {isExporting ? 'Exporting...' : 'Proceed to Train →'}
+              Continue to Versions
+              {/* <ArrowRight className="w-4 h-4" /> */}
             </button>
           </div>
 
