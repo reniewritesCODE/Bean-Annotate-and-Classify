@@ -9,6 +9,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routers import auth_routes, images, projects, annotations
 from app.routers.training import router as training_router
+from app.routers.versions import router as versions_router
+from app.routers.inference import router as inference_router
 
 app = FastAPI(title="BeanScan API", redirect_slashes=False)
 
@@ -26,7 +28,8 @@ app.include_router(images.router)
 app.include_router(projects.router)
 app.include_router(annotations.router)
 app.include_router(training_router)
-
+app.include_router(versions_router)
+app.include_router(inference_router)
 
 @app.get("/health")
 async def health_check():

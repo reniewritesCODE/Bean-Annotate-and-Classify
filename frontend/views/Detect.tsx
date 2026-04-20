@@ -21,11 +21,17 @@ export function DetectView() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
+  const wsRef = useRef<WebSocket | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const loopActive = useRef<boolean>(false);
+  
+  const [device, setDevice] = useState<'cpu'|'cuda'>('cpu');
   const [isRunning, setIsRunning] = useState(false);
   const [threshold, setThreshold] = useState(0.5);
   const [mode, setMode] = useState<DetectionMode>('camera');
   const [selectedModel, setSelectedModel] = useState<string>('YOLOv8-large');
   const [showModelSelector, setShowModelSelector] = useState(false);
+  const [liveDetections, setLiveDetections] = useState<any[]>([]);
   
   const AVAILABLE_MODELS = [
     { name: 'YOLOv8-nano', description: 'Fastest, lowest accuracy' },
@@ -42,16 +48,34 @@ export function DetectView() {
     total: 0,
     classes: {} as Record<number, number>,
   });
-  const { addToast } = useApp();
+  const { addToast, currentProject } = useApp();
 
 
   const handleStart = () => {
-    setIsRunning(true);
-    addToast('Detection started', 'success');
+    if (mode === 'upload' && uploadedImages.length > 0) {
+      setIsRunning(true);
+      // Run sequentially on all pending
+      const runAll = async () => {
+        for (const img of uploadedImages) {
+          if (img.status === 'pending' || img.status === 'error') {
+            await runDetectionOnImage(img.id);
+          }
+        }
+        setIsRunning(false);
+      };
+      runAll();
+      addToast('Batch detection started', 'info');
+    } else {
+      setIsRunning(true);
+      addToast('Real-time detection started', 'success');
+    }
   };
 
   const handleStop = () => {
     setIsRunning(false);
+    loopActive.current = false;
+    if (wsRef.current) wsRef.current.close();
+    setLiveDetections([]);
     addToast('Detection stopped', 'info');
   };
 
@@ -138,9 +162,164 @@ export function DetectView() {
     if (selectedImageId === id) setSelectedImageId(null);
   };
 
+  const updateStats = useCallback((detections: any[], accumulate: boolean = false) => {
+    setDetectionStats(prev => {
+      const classes = accumulate ? { ...prev.classes } : {};
+      detections.forEach(d => {
+        classes[d.cls] = (classes[d.cls] || 0) + 1;
+      });
+      return {
+        total: accumulate ? prev.total + detections.length : detections.length,
+        classes
+      };
+    });
+  }, []);
+
   const runDetectionOnImage = async (imageId: string) => {
-    // TODO: Connect to backend API
-    addToast('Detection API not yet implemented', 'info');
+    if (!currentProject?.id) return;
+    
+    const img = uploadedImages.find(i => i.id === imageId);
+    if (!img) return;
+
+    setUploadedImages(prev => prev.map(i => i.id === imageId ? { ...i, status: 'processing', detections: undefined } : i));
+
+    try {
+      const formData = new FormData();
+      formData.append('file', img.file);
+      formData.append('threshold', threshold.toString());
+      formData.append('device', device);
+
+      const token = localStorage.getItem('access_token');
+      const res = await fetch(`/api/projects/${currentProject.id}/inference/image`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData
+      });
+
+      if (!res.ok) throw new Error('Detection failed');
+
+      const data = await res.json();
+      setUploadedImages(prev => prev.map(i => i.id === imageId ? { 
+        ...i, 
+        status: 'done',
+        detections: data.detections
+      } : i));
+      
+      updateStats(data.detections, true);
+    } catch (err) {
+      setUploadedImages(prev => prev.map(i => i.id === imageId ? { ...i, status: 'error' } : i));
+      addToast('Failed. Check if a model is trained and production ready.', 'error');
+    }
+  };
+
+  // Inference Websocket Loop
+  useEffect(() => {
+    if (!isRunning || mode !== 'camera' || !currentProject?.id) {
+       loopActive.current = false;
+       if (wsRef.current) wsRef.current.close();
+       setLiveDetections([]);
+       if (mode === 'camera') updateStats([], false);
+       return;
+    }
+
+    loopActive.current = true;
+    const wsUrl = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/api/projects/${currentProject.id}/inference/stream`;
+    
+    const targetWsUrl = wsUrl.replace('3000', '8000'); // Handling typical Next.js to FastAPI proxy dev port
+    
+    // Fix absolute URLs in dev environment
+    const socket = new WebSocket(targetWsUrl.includes('localhost') ? 'ws://localhost:8000' + new URL(targetWsUrl).pathname : targetWsUrl);
+    wsRef.current = socket;
+
+    let isWaitingForResponse = false;
+
+    socket.onopen = () => {
+      socket.send(JSON.stringify({ config: { device, threshold } }));
+      requestFrame();
+    };
+
+    socket.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (data.type === 'detections') {
+        setLiveDetections(data.detections);
+        updateStats(data.detections, false);
+        isWaitingForResponse = false;
+        if (loopActive.current) {
+          setTimeout(requestFrame, 150); // ~6.6 FPS
+        }
+      }
+    };
+
+    socket.onerror = (e) => {
+      console.error('WebSocket Error:', e);
+      addToast('Inference streaming failed. Check backend.', 'error');
+      setIsRunning(false);
+    };
+
+    const requestFrame = () => {
+      if (!loopActive.current || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
+      if (isWaitingForResponse) return;
+      if (!videoRef.current || videoRef.current.readyState < 2) {
+        setTimeout(requestFrame, 100);
+        return;
+      }
+
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+
+      const scale = 480 / Math.max(video.videoWidth, video.videoHeight, 1);
+      const cw = Math.floor(video.videoWidth * scale);
+      const ch = Math.floor(video.videoHeight * scale);
+      
+      canvas.width = cw;
+      canvas.height = ch;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(video, 0, 0, cw, ch);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.5);
+        isWaitingForResponse = true;
+        wsRef.current.send(JSON.stringify({ frame: dataUrl }));
+      }
+    };
+
+    return () => {
+      loopActive.current = false;
+      if (wsRef.current) wsRef.current.close();
+    };
+  }, [isRunning, mode, currentProject?.id, updateStats]);
+
+  useEffect(() => {
+     if (isRunning && wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({ config: { device, threshold } }));
+     }
+  }, [device, threshold, isRunning]);
+
+  const renderDetections = (detections: any[]) => {
+    return detections.map((det, i) => {
+      const cls = DEFECT_CLASSES.find(c => c.id === det.cls) || DEFECT_CLASSES[0];
+      const left = (det.x - det.w / 2) * 100;
+      const top = (det.y - det.h / 2) * 100;
+      const width = det.w * 100;
+      const height = det.h * 100;
+      return (
+        <div 
+          key={i}
+          className="absolute border-2 pointer-events-none"
+          style={{
+            left: `${left}%`, top: `${top}%`, width: `${width}%`, height: `${height}%`,
+            borderColor: cls.color
+          }}
+        >
+          <div 
+            className="absolute -top-5 left-[-2px] text-[10px] px-1 font-bold text-white whitespace-nowrap shadow-sm"
+            style={{ backgroundColor: cls.color }}
+          >
+            {cls.name} {(det.conf * 100).toFixed(0)}%
+          </div>
+        </div>
+      );
+    });
   };
 
   // Cleanup camera on unmount
@@ -186,16 +365,25 @@ export function DetectView() {
         <div className="lg:col-span-3 min-h-0 flex flex-col">
           <Panel title={mode === 'camera' ? 'Camera Feed' : 'Uploaded Images'} className="font-headline flex-1 flex flex-col min-h-0">
             <div className="flex-1 flex flex-col gap-4 font-sans min-h-0">
-              {/* Canvas/Video Area */}
               <div className="flex-1 border border-border rounded-lg overflow-hidden bg-muted relative min-h-0">
+                <canvas ref={canvasRef} className="hidden" />
                 {mode === 'camera' ? (
-                  <video
-                    ref={videoRef}
-                    autoPlay
-                    playsInline
-                    muted
-                    className="w-full h-full object-contain"
-                  />
+                  <>
+                    <video
+                      ref={videoRef}
+                      autoPlay
+                      playsInline
+                      muted
+                      className="w-full h-full object-contain"
+                    />
+                    {liveDetections.length > 0 && (
+                      <div className="absolute inset-0 max-w-full max-h-full object-contain z-10 pointer-events-none">
+                        <div className="relative w-full h-full" style={{ aspectRatio: videoRef.current ? `${videoRef.current.videoWidth}/${videoRef.current.videoHeight}` : 'auto' }}>
+                          {renderDetections(liveDetections)}
+                        </div>
+                      </div>
+                    )}
+                  </>
                 ) : mode === 'upload' ? (
                   <div
                     ref={dropZoneRef}
@@ -247,22 +435,27 @@ export function DetectView() {
                                 alt={`Upload ${img.id}`}
                                 className="w-full h-full object-cover"
                               />
+                              {img.detections && (
+                                <div className="absolute inset-0 z-10 pointer-events-none overflow-hidden">
+                                  {renderDetections(img.detections)}
+                                </div>
+                              )}
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   removeImage(img.id);
                                 }}
-                                className="absolute top-1 right-1 p-1 bg-destructive text-white rounded-full hover:bg-destructive/90"
+                                className="absolute top-1 right-1 p-1 bg-destructive text-white rounded-full hover:bg-destructive/90 z-20"
                               >
                                 <X className="w-3 h-3" />
                               </button>
                               {img.status === 'processing' && (
-                                <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                                <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-20">
                                   <span className="text-white text-xs">Processing...</span>
                                 </div>
                               )}
                               {img.status === 'done' && (
-                                <div className="absolute bottom-1 right-1 w-3 h-3 bg-green-500 rounded-full" />
+                                <div className="absolute bottom-1 right-1 w-3 h-3 bg-green-500 rounded-full z-20 shadow-sm" />
                               )}
                             </div>
                           ))}
@@ -350,6 +543,29 @@ export function DetectView() {
                       </div>
                     </div>
                   )}
+                </div>
+              </div>
+            </Panel>
+
+            {/* Hardware Toggle */}
+            <Panel title="Device" className='font-headline shrink-0 flex-1 min-w-0'>
+              <div className="font-sans flex items-center justify-between">
+                {/* <span className="text-sm font-medium text-foreground">Device</span> */}
+                <div className="flex bg-muted rounded-md p-0.5">
+                  <button
+                    onClick={() => setDevice('cpu')}
+                    disabled={isRunning}
+                    className={`px-3 py-1 text-xs rounded-sm transition-colors ${device === 'cpu' ? 'bg-background shadow-sm font-medium text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                  >
+                    CPU
+                  </button>
+                  <button
+                    onClick={() => setDevice('cuda')}
+                    disabled={isRunning}
+                    className={`px-3 py-1 text-xs rounded-sm transition-colors ${device === 'cuda' ? 'bg-background shadow-sm font-medium text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                  >
+                    GPU
+                  </button>
                 </div>
               </div>
             </Panel>

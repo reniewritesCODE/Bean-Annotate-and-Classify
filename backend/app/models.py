@@ -35,6 +35,7 @@ class Project(Base):
 
     images = relationship('Image', back_populates='project', cascade="all, delete-orphan")
     training_jobs = relationship('TrainingJob', back_populates='project', cascade="all, delete-orphan")
+    dataset_versions = relationship('DatasetVersion', back_populates='project', cascade="all, delete-orphan")
 
 
 class Image(Base):
@@ -97,3 +98,20 @@ class ModelVersion(Base):
     recall = Column(Float, nullable=True)
     mlflow_run_id = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class DatasetVersion(Base):
+    __tablename__ = 'dataset_versions'
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    project_id = Column(String, ForeignKey('projects.id'), nullable=False)
+    name = Column(String, nullable=False)
+    train_split = Column(Integer, default=70)
+    val_split = Column(Integer, default=20)
+    test_split = Column(Integer, default=10)
+    image_size = Column(Integer, default=640)
+    preprocessing = Column(JSON, default=dict)
+    augmentations = Column(JSON, default=dict)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    project = relationship('Project', back_populates='dataset_versions')

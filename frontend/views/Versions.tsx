@@ -3,11 +3,26 @@
 import { useApp } from '@/context/AppContext';
 import { Panel } from '@/components/panels';
 import { Button } from '@/components/ui/button';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Slider } from '@/components/ui/slider';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AugmentationPreview } from '@/components/AugmentationPreview';
-import { Package, CheckCircle } from 'lucide-react';
+import { Package, CheckCircle, Layers, Calendar, ArrowRight, X, Trash2, Edit2, Eye, Save, Sparkles } from 'lucide-react';
+import Link from 'next/link';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { IndividualAugmentationPreview } from '@/components/IndividualAugmentationPreview';
+
+interface Version {
+  id: string;
+  name: string;
+  train_split: number;
+  val_split: number;
+  test_split: number;
+  image_size: number;
+  created_at: string;
+  preprocessing?: { autoOrient: boolean };
+  augmentations?: AugmentationOptions;
+}
 
 interface AugmentationOptions {
   flip: boolean;
@@ -62,6 +77,102 @@ export function VersionsView() {
   });
 
   const [isCreatingVersion, setIsCreatingVersion] = useState(false);
+  const [versions, setVersions] = useState<Version[]>([]);
+  const [isLoadingVersions, setIsLoadingVersions] = useState(true);
+  const [selectedVersion, setSelectedVersion] = useState<Version | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // Fetch versions on mount
+  useEffect(() => {
+    fetchVersions();
+  }, [currentProject?.id]);
+
+  const fetchVersions = async () => {
+    if (!currentProject?.id) return;
+
+    const token = localStorage.getItem('access_token');
+    try {
+      const res = await fetch(`/api/projects/${currentProject.id}/versions`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setVersions(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch versions:', error);
+    } finally {
+      setIsLoadingVersions(false);
+    }
+  };
+
+  const handleViewVersion = (version: Version) => {
+    setSelectedVersion(version);
+    setEditName(version.name);
+    setIsEditing(false);
+    setIsModalOpen(true);
+  };
+
+  const handleDeleteVersion = async () => {
+    if (!selectedVersion || !currentProject?.id) return;
+
+    setIsDeleting(true);
+    const token = localStorage.getItem('access_token');
+
+    try {
+      const res = await fetch(`/api/projects/${currentProject.id}/versions/${selectedVersion.id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+
+      if (res.ok) {
+        addToast('Version deleted successfully', 'success');
+        setIsModalOpen(false);
+        fetchVersions();
+      } else {
+        const data = await res.json();
+        addToast(data.detail || 'Failed to delete version', 'error');
+      }
+    } catch (error) {
+      console.error('Error deleting version:', error);
+      addToast('Network error deleting version', 'error');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleEditVersion = async () => {
+    if (!selectedVersion || !currentProject?.id || !editName.trim()) return;
+
+    const token = localStorage.getItem('access_token');
+
+    try {
+      const res = await fetch(`/api/projects/${currentProject.id}/versions/${selectedVersion.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ name: editName.trim() }),
+      });
+
+      if (res.ok) {
+        addToast('Version updated successfully', 'success');
+        setIsEditing(false);
+        setSelectedVersion({ ...selectedVersion, name: editName.trim() });
+        fetchVersions();
+      } else {
+        const data = await res.json();
+        addToast(data.detail || 'Failed to update version', 'error');
+      }
+    } catch (error) {
+      console.error('Error updating version:', error);
+      addToast('Network error updating version', 'error');
+    }
+  };
 
   const totalImages = images.length;
   const trainCount = Math.floor(totalImages * (config.trainSplit / 100));
@@ -152,6 +263,8 @@ export function VersionsView() {
         ...config,
         versionName: '',
       });
+      // Refresh versions list
+      fetchVersions();
     } catch (error) {
       console.error('Error creating version:', error);
       addToast('Network error creating version', 'error');
@@ -288,41 +401,74 @@ export function VersionsView() {
           {/* Augmentations */}
           <Panel title="Augmentations" className="font-headline">
             <div className="flex flex-col text-sm px-2 font-sans py-2">
-              <div className="grid grid-cols-2 gap-2">
+              {/* Description */}
+              <div className="mb-4 p-3 bg-primary/5 rounded-md border border-primary/10">
+                <div className="flex items-start gap-2">
+                  <Sparkles className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
+                  <p className="text-xs text-foreground/80 leading-relaxed">
+                    This augmentation process will artificially increase the size and diversity of your 
+                    training dataset by creating modified copies of existing images, which will be fed 
+                    for training.
+                  </p>
+                </div>
+              </div>
+
+              {/* Augmentation Items with Previews */}
+              <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1">
                 {[
-                  { key: 'flip', label: 'Flip' },
-                  { key: 'rotate90', label: '90° Rotate' },
-                  { key: 'crop', label: 'Crop' },
-                  { key: 'rotation', label: 'Rotation' },
-                  { key: 'shear', label: 'Shear' },
-                  { key: 'brightness', label: 'Brightness' },
-                  { key: 'exposure', label: 'Exposure' },
-                  { key: 'blur', label: 'Blur' },
-                  { key: 'noise', label: 'Noise' },
-                  { key: 'motionBlur', label: 'Motion Blur' },
-                  { key: 'cameraGain', label: 'Camera Gain' },
-                ].map(({ key, label }) => (
-                  <div key={key} className="flex items-center gap-2">
-                    <Checkbox
-                      id={`aug-${key}`}
-                      checked={config.augmentations[key as keyof AugmentationOptions]}
-                      onCheckedChange={(checked) =>
-                        setConfig({
-                          ...config,
-                          augmentations: { ...config.augmentations, [key]: checked as boolean },
-                        })
-                      }
-                      disabled={isCreatingVersion}
-                    />
-                    <label htmlFor={`aug-${key}`} className="text-sm text-foreground cursor-pointer">
-                      {label}
-                    </label>
+                  { key: 'flip', label: 'Flip', desc: 'Horizontal flip' },
+                  { key: 'rotate90', label: '90° Rotate', desc: 'Quarter turn rotation' },
+                  { key: 'crop', label: 'Crop', desc: 'Random cropping' },
+                  { key: 'rotation', label: 'Rotation', desc: 'Random angle rotation' },
+                  { key: 'shear', label: 'Shear', desc: 'Shear transformation' },
+                  { key: 'brightness', label: 'Brightness', desc: 'Adjust brightness' },
+                  { key: 'exposure', label: 'Exposure', desc: 'Adjust exposure' },
+                  { key: 'blur', label: 'Blur', desc: 'Gaussian blur' },
+                  { key: 'noise', label: 'Noise', desc: 'Add noise' },
+                  { key: 'motionBlur', label: 'Motion Blur', desc: 'Simulate motion' },
+                  { key: 'cameraGain', label: 'Camera Gain', desc: 'ISO noise simulation' },
+                ].map(({ key, label, desc }) => (
+                  <div key={key} className="p-3 border border-border/50 rounded-md hover:border-primary/30 transition-colors">
+                    <div className="flex items-start gap-3">
+                      <Checkbox
+                        id={`aug-${key}`}
+                        checked={config.augmentations[key as keyof AugmentationOptions]}
+                        onCheckedChange={(checked) =>
+                          setConfig({
+                            ...config,
+                            augmentations: { ...config.augmentations, [key]: checked as boolean },
+                          })
+                        }
+                        disabled={isCreatingVersion}
+                        className="mt-1"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <label htmlFor={`aug-${key}`} className="text-sm font-medium text-foreground cursor-pointer flex items-center gap-2">
+                          {label}
+                          {config.augmentations[key as keyof AugmentationOptions] && (
+                            <span className="px-1.5 py-0.5 bg-green-100 text-green-700 text-[10px] rounded">
+                              ENABLED
+                            </span>
+                          )}
+                        </label>
+                        <p className="text-xs text-muted-foreground mt-0.5">{desc}</p>
+                        
+                        {/* Individual Preview - only show if enabled or user wants to preview */}
+                        <IndividualAugmentationPreview
+                          augmentationKey={key}
+                          augmentationLabel={label}
+                          projectId={currentProject?.id}
+                          imageSize={config.imageSize}
+                        />
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>
             </div>
           </Panel>
 
+          {/* Combined Preview - shows all enabled augmentations together */}
           <AugmentationPreview
             augmentations={config.augmentations}
             imageSize={config.imageSize}
@@ -341,6 +487,189 @@ export function VersionsView() {
 
         {/* Right Column: Information & Next Steps */}
         <div className="lg:col-span-2 space-y-4">
+          {/* Versions List */}
+          <Panel title={`Dataset Versions (${versions.length})`} className="font-headline">
+            {isLoadingVersions ? (
+              <div className="p-4 text-center text-muted-foreground">Loading versions...</div>
+            ) : versions.length === 0 ? (
+              <div className="p-4 text-center text-muted-foreground">
+                <Layers className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                <p>No versions created yet.</p>
+                <p className="text-xs mt-1">Configure your dataset and click "Finalize & Create Version"</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-border">
+                {versions.map((version) => (
+                  <div 
+                    key={version.id} 
+                    onClick={() => handleViewVersion(version)}
+                    className="p-3 flex items-center justify-between hover:bg-muted/50 transition-colors cursor-pointer"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                        <Package className="w-5 h-5 text-primary" />
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-foreground">{version.name}</h4>
+                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <Calendar className="w-3 h-3" />
+                            {new Date(version.created_at).toLocaleDateString()}
+                          </span>
+                          <span>•</span>
+                          <span>{version.image_size}px</span>
+                          <span>•</span>
+                          <span>Split {version.train_split}/{version.val_split}/{version.test_split}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-8 w-8 p-0"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleViewVersion(version);
+                        }}
+                      >
+                        <Eye className="w-4 h-4" />
+                      </Button>
+                      <Link
+                        href={`/projects/${currentProject?.id}/train?version=${version.id}`}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <Button variant="outline" size="sm" className="gap-1">
+                          Train
+                          <ArrowRight className="w-3 h-3" />
+                        </Button>
+                      </Link>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Panel>
+
+          {/* Version Detail Modal */}
+          <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Package className="w-5 h-5" />
+                  {isEditing ? (
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        className="bg-background border border-border rounded-md px-3 py-1 text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                        autoFocus
+                      />
+                      <Button size="sm" onClick={handleEditVersion} className="gap-1">
+                        <Save className="w-3 h-3" />
+                        Save
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => {
+                        setIsEditing(false);
+                        setEditName(selectedVersion?.name || '');
+                      }}>
+                        Cancel
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      {selectedVersion?.name}
+                      <Button 
+                        size="sm" 
+                        variant="ghost" 
+                        onClick={() => setIsEditing(true)}
+                        className="h-7 w-7 p-0"
+                      >
+                        <Edit2 className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  )}
+                </DialogTitle>
+              </DialogHeader>
+
+              {selectedVersion && (
+                <div className="space-y-6 font-sans text-sm">
+                  {/* Basic Info */}
+                  <div className="grid grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg">
+                    <div>
+                      <span className="text-muted-foreground text-xs">Created</span>
+                      <p className="font-medium">{new Date(selectedVersion.created_at).toLocaleString()}</p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground text-xs">Image Size</span>
+                      <p className="font-medium">{selectedVersion.image_size}px</p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground text-xs">Dataset Split</span>
+                      <p className="font-medium">
+                        Train {selectedVersion.train_split}% / Val {selectedVersion.val_split}% / Test {selectedVersion.test_split}%
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground text-xs">Version ID</span>
+                      <p className="font-medium text-xs text-muted-foreground">{selectedVersion.id.slice(0, 8)}...</p>
+                    </div>
+                  </div>
+
+                  {/* Preprocessing */}
+                  <div>
+                    <h4 className="font-semibold mb-2">Preprocessing</h4>
+                    <div className="flex flex-wrap gap-2">
+                      <span className={`px-2 py-1 rounded text-xs ${selectedVersion.preprocessing?.autoOrient ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
+                        Auto-orient: {selectedVersion.preprocessing?.autoOrient ? 'ON' : 'OFF'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Augmentations */}
+                  <div>
+                    <h4 className="font-semibold mb-2">Augmentations</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedVersion.augmentations ? (
+                        Object.entries(selectedVersion.augmentations).map(([key, enabled]) => (
+                          <span 
+                            key={key}
+                            className={`px-2 py-1 rounded text-xs ${enabled ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-500'}`}
+                          >
+                            {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}: {enabled ? 'ON' : 'OFF'}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-muted-foreground text-xs">No augmentation data available</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex justify-between items-center pt-4 border-t">
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={handleDeleteVersion}
+                      disabled={isDeleting}
+                      className="gap-2"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      {isDeleting ? 'Deleting...' : 'Delete Version'}
+                    </Button>
+                    <Link href={`/projects/${currentProject?.id}/train?version=${selectedVersion.id}`}>
+                      <Button className="gap-2 bg-[#D97706] hover:bg-[#B45309] text-white">
+                        Train with this Version
+                        <ArrowRight className="w-4 h-4" />
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
+
           <Panel title="About Versions" className="font-headline">
             <div className="space-y-3 font-sans text-sm text-foreground/80">
               <p>

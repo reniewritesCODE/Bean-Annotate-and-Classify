@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Panel } from '@/components/panels';
-import { Download, Calendar, CheckCircle, XCircle, Clock, Star, TrendingUp } from 'lucide-react';
+import { Download, Calendar, CheckCircle, XCircle, Clock, Star, TrendingUp, Trash2 } from 'lucide-react';
 
 interface TrainingJob {
   job_id: string;
@@ -88,7 +88,6 @@ export function TrainingHistory({ projectId, onCompare }: TrainingHistoryProps) 
 
       const data = await response.json();
       
-      // Create a temporary link to trigger download
       const link = document.createElement('a');
       link.href = data.download_url;
       link.download = data.filename;
@@ -97,6 +96,32 @@ export function TrainingHistory({ projectId, onCompare }: TrainingHistoryProps) 
       document.body.removeChild(link);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to download model');
+    }
+  };
+
+  const handleDelete = async (jobId: string) => {
+    if (!projectId) return;
+    if (!window.confirm('Are you sure you want to delete this training history?')) return;
+
+    try {
+      const token = localStorage.getItem('access_token');
+      const response = await fetch(`/api/projects/${projectId}/train/history/${jobId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to delete training history');
+      }
+
+      // Remove from state
+      setHistory(prev => prev.filter(job => job.job_id !== jobId));
+      setSelectedJobs(prev => prev.filter(id => id !== jobId));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete training history');
     }
   };
 
@@ -265,16 +290,27 @@ export function TrainingHistory({ projectId, onCompare }: TrainingHistoryProps) 
                   <div className="text-xs text-muted-foreground">
                     {job.model ? `Model: ${job.model.name}` : 'No model generated'}
                   </div>
-                  {job.model && job.status === 'done' && (
+                  <div className="flex items-center gap-2">
+                    {job.model && job.status === 'done' && (
+                      <Button
+                        onClick={() => handleDownload(job.job_id)}
+                        variant="outline"
+                        size="sm"
+                      >
+                        <Download className="w-4 h-4 mr-2" />
+                        Download
+                      </Button>
+                    )}
                     <Button
-                      onClick={() => handleDownload(job.job_id)}
-                      variant="outline"
+                      onClick={() => handleDelete(job.job_id)}
+                      variant="ghost"
                       size="sm"
+                      className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
+                      title="Delete training job"
                     >
-                      <Download className="w-4 h-4 mr-2" />
-                      Download
+                      <Trash2 className="w-4 h-4" />
                     </Button>
-                  )}
+                  </div>
                 </div>
               </div>
             ))}

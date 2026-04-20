@@ -38,6 +38,37 @@ export function TrainView() {
   const [jobId, setJobId] = useState<string | null>(null);
   const [compareJobs, setCompareJobs] = useState<any[]>([]);
   const [showComparison, setShowComparison] = useState(false);
+  const [versions, setVersions] = useState<any[]>([]);
+  const [selectedVersionId, setSelectedVersionId] = useState<string>('');
+
+  useEffect(() => {
+    if (!currentProject?.id) return;
+    const fetchVersions = async () => {
+      const token = localStorage.getItem('access_token');
+      try {
+        const res = await fetch(`/api/projects/${currentProject.id}/versions`, {
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setVersions(data);
+          
+          // Use search params or default to first version
+          const params = new URLSearchParams(window.location.search);
+          const versionParam = params.get('version');
+          
+          if (versionParam && data.some((v: any) => v.id === versionParam)) {
+            setSelectedVersionId(versionParam);
+          } else if (data.length > 0) {
+            setSelectedVersionId(data[0].id);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch versions', err);
+      }
+    };
+    fetchVersions();
+  }, [currentProject?.id]);
 
   const logEndRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -131,6 +162,7 @@ export function TrainView() {
           batch: config.batchSize,
           learning_rate: config.learningRate,
           model: config.model,
+          version_id: selectedVersionId || undefined,
         }),
       });
 
@@ -249,9 +281,32 @@ export function TrainView() {
 
           {/* Dataset Version Info */}
           <Panel title="Dataset Version" className="font-headline">
+            <div className="flex flex-col text-sm px-2 font-sans">
+              <div className="flex flex-col gap-2 py-3 border-b border-border/50">
+                <span className="font-medium text-foreground">Select Version</span>
+                <select
+                  value={selectedVersionId}
+                  onChange={(e) => setSelectedVersionId(e.target.value)}
+                  disabled={isTraining || versions.length === 0}
+                  className="bg-transparent border border-border rounded-md px-3 py-2 w-full text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                >
+                  <option value="">-- No Version Selected --</option>
+                  {versions.map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {v.name} ({v.train_split}/{v.val_split}/{v.test_split})
+                    </option>
+                  ))}
+                </select>
+                {versions.length === 0 && (
+                  <p className="text-xs text-muted-foreground mt-1 text-red-400">
+                    No versions found. Please create one first.
+                  </p>
+                )}
+              </div>
+            </div>
             <div className="p-4 text-sm text-muted-foreground">
               <p className="mb-3">
-                Configure dataset splits, preprocessing, and augmentations in the 
+                Need a new configuration? Adjust dataset splits, preprocessing, and augmentations in the 
                 <Link 
                   href={`/projects/${currentProject?.id}/versions`}
                   className="text-primary hover:underline inline-flex items-center gap-1 mx-1"
@@ -259,23 +314,8 @@ export function TrainView() {
                   <Layers className="w-3 h-3" />
                   Versions
                 </Link>
-                page before training.
+                page.
               </p>
-              <div className="flex gap-2">
-                <Link
-                  href={`/projects/${currentProject?.id}/versions`}
-                  className="flex-1"
-                >
-                  <Button
-                    variant="outline"
-                    className="w-full"
-                    disabled={!currentProject?.id}
-                  >
-                    <Layers className="w-4 h-4 mr-2" />
-                    Go to Versions
-                  </Button>
-                </Link>
-              </div>
             </div>
           </Panel>
 
