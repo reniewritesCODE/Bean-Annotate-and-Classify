@@ -1,9 +1,7 @@
 # backend/app/schemas.py
 from pydantic import BaseModel
 from datetime import datetime
-from typing import Optional, List
-
-from typing import Optional, Literal
+from typing import Optional, List, Dict, Any
 
 class UserCreate(BaseModel):
     username: str
@@ -94,3 +92,35 @@ class ProjectSummaryResponse(BaseModel):
     total_annotations: int
     class_distribution: List[ClassCount]
     recent_activity: List[ActivityItem]
+
+
+class ModelVersionCreate(BaseModel):
+    project_id: str
+    name: str
+    map50: float
+    map75: float
+    precision: float
+    recall: float
+    f1: float
+    speed: float
+    s3_key_pt: str
+    per_class_ap: Optional[dict]
+
+
+class ModelVersion(BaseModel):
+    id: str
+    project_id: str
+    name: str
+    is_base: Optional[bool] = False
+    map50: float
+    map75: float
+    precision: float
+    recall: float
+    f1: float
+    speed: float
+    s3_key_pt: str
+    is_production: Optional[bool] = False
+    created_at: Optional[datetime] = None
+    per_class_ap: Optional[dict] = None
+    class Config:
+        from_attributes = True

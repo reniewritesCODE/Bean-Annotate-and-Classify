@@ -1,4 +1,4 @@
-# backend/app/models.py
+﻿# backend/app/models.py
 from sqlalchemy import Column, String, Float, Boolean, Integer, Enum, DateTime, ForeignKey, JSON
 from sqlalchemy.orm import relationship
 from app.database import Base
@@ -94,10 +94,15 @@ class ModelVersion(Base):
     s3_key_pt = Column(String, nullable=True)
     s3_key_onnx = Column(String, nullable=True)
     map50 = Column(Float, nullable=True)
+    map75 = Column(Float, nullable=True)
     precision = Column(Float, nullable=True)
     recall = Column(Float, nullable=True)
+    f1 = Column(Float, nullable=True)
+    speed = Column(Float, nullable=True)
     mlflow_run_id = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+    project_id = Column(String, ForeignKey('projects.id'), nullable=False)
+    per_class_ap = Column(JSON, nullable=True) 
 
 
 class DatasetVersion(Base):
