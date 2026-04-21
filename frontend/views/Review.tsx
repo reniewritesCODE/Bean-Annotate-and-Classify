@@ -1,50 +1,123 @@
 'use client';
 
 import { Panel, StatCard } from '@/components/panels';
-import { MODELS, DEFECT_CLASSES } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
 import { useApp } from '@/context/AppContext';
-import { CheckCircle, Zap } from 'lucide-react';
-const AP_DATA_STATIC = [
-  { name: 'Full Black', value: 93 },
-  { name: 'Full Sour', value: 89 },
-  { name: 'Fungus Damage', value: 86 },
-  { name: 'Severe Insect', value: 80 },
-  { name: 'Partial Black', value: 87 },
-  { name: 'Partial Sour', value: 84 },
-  { name: 'Immature', value: 79 },
-  { name: 'Broken/Cut', value: 75 },
-];
+import { CheckCircle } from 'lucide-react';
+import { useEffect, useState } from 'react';
+
+type ModelRecord = {
+  id: string;
+  project_id: string;
+  name: string;
+  is_base?: boolean;
+  is_production?: boolean;
+  map50?: number;
+  map75?: number;
+  precision?: number;
+  recall?: number;
+  f1?: number;
+  speed?: number;
+  per_class_ap?: Record<string, number> | null;
+  created_at?: string;
+};
 
 const CHART_COLORS: Record<string, string> = {
   'Full Black': '#ef4444',
   'Full Sour': '#ea580c',
   'Fungus Damage': '#d97706',
   'Severe Insect': '#be185d',
+  'Foreign Matter': '#3a86ff',
+  'Dried Cherry': '#8338ec',
   'Partial Black': '#8b5cf6',
   'Partial Sour': '#3b82f6',
+  'Hull/Husk': '#06d6a0',
+  'Parchment': '#ef476f',
+  'Slight Insect Damage': '#118ab2',
+  'Floater': '#f72585',
   'Immature': '#10b981',
+  'Withered': '#7209b7',
+  'Shell': '#4cc9f0',
   'Broken/Cut': '#65a30d'
 };
+
 export function ReviewView() {
-  const { addToast } = useApp();
-  const baseline = MODELS.find((m) => m.type === 'baseline');
-  const proposed = MODELS.find((m) => m.type === 'proposed');
+  const { addToast, currentProject } = useApp();
+  const [models, setModels] = useState<ModelRecord[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const handleApprove = () => {
-    addToast('Model approved and deployed to registry', 'success');
+  useEffect(() => {
+    async function fetchModels() {
+      if (!currentProject?.id) {
+        setModels([]);
+        setLoading(false);
+        return;
+      }
+      setLoading(true);
+      try {
+        const res = await fetch('/models/');
+        if (!res.ok) throw new Error('Failed to fetch models');
+        const data = (await res.json()) as ModelRecord[];
+        const projectModels = data.filter(
+          (m) => m.is_base || m.project_id === currentProject.id
+        );
+        setModels(projectModels);
+      } catch (err: any) {
+        addToast(err.message || 'Failed to load models', 'error');
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchModels();
+  }, [addToast, currentProject?.id]);
+
+  const sortedByNewest = [...models].sort(
+    (a, b) =>
+      new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
+  );
+  const baseline = sortedByNewest.find((m) => m.is_base) || null;
+  const proposed =
+    sortedByNewest.find((m) => !m.is_base && !m.is_production) ||
+    sortedByNewest.find((m) => !m.is_base) ||
+    null;
+  const apData = Object.entries(proposed?.per_class_ap || {}).map(([name, value]) => ({
+    name,
+    value: Math.max(0, Math.min(100, Math.round(Number(value) * 100))),
+  }));
+
+  const handleApprove = async () => {
+    if (!proposed) return;
+    try {
+      // Example: POST to /api/models/{id}/approve or /deploy
+      const res = await fetch(`/models/${proposed.id || proposed.name}/deploy`, { method: 'POST' });
+      if (!res.ok) throw new Error('Approval failed');
+      addToast('Model approved and deployed to registry', 'success');
+    } catch (err: any) {
+      addToast(err.message || 'Approval failed', 'error');
+    }
   };
 
-  const handleReject = () => {
+  const handleReject = async () => {
     addToast('Model rejected, not added to registry', 'info');
+    // Optionally, call a backend endpoint to mark as rejected
   };
+
+  const map50Improvement = baseline && proposed ? (proposed.map50 ?? 0) - (baseline.map50 ?? 0) : 0;
+  const precisionImprovement = baseline && proposed ? (proposed.precision ?? 0) - (baseline.precision ?? 0) : 0;
+  const baselineSpeed = baseline?.speed ?? 0;
+  const proposedSpeed = proposed?.speed ?? 0;
+  const hasSpeedComparison = baselineSpeed > 0 && proposedSpeed > 0;
 
   return (
     <div className="p-4 space-y-4">
       {/* Model Comparison */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Baseline */}
-        {baseline && (
+        {loading ? (
+          <Panel title="Baseline Model" className='font-headline'>
+            <div className="py-8 text-center text-muted-foreground">Loading...</div>
+          </Panel>
+        ) : baseline && (
           <Panel title="Baseline Model" className='font-headline'>
             <div className="space-y-4 font-sans">
               <div className="text-center p-4 bg-muted rounded-lg">
@@ -55,19 +128,23 @@ export function ReviewView() {
               </div>
 
               <div className="grid grid-cols-2 gap-2">
-                <StatCard label="mAP@50" value={baseline.map50.toFixed(3)} />
-                <StatCard label="mAP@75" value={baseline.map75.toFixed(3)} />
-                <StatCard label="Precision" value={baseline.prec.toFixed(3)} />
-                <StatCard label="Recall" value={baseline.rec.toFixed(3)} />
-                <StatCard label="F1 Score" value={baseline.f1.toFixed(3)} />
-                <StatCard label="Speed (ms)" value={baseline.spd.toFixed(1)} />
+                <StatCard label="mAP@50" value={(baseline.map50 ?? 0).toFixed(3)} />
+                <StatCard label="mAP@75" value={(baseline.map75 ?? 0).toFixed(3)} />
+                <StatCard label="Precision" value={(baseline.precision ?? 0).toFixed(3)} />
+                <StatCard label="Recall" value={(baseline.recall ?? 0).toFixed(3)} />
+                <StatCard label="F1 Score" value={(baseline.f1 ?? 0).toFixed(3)} />
+                <StatCard label="Speed (ms)" value={(baseline.speed ?? 0).toFixed(1)} />
               </div>
             </div>
           </Panel>
         )}
 
         {/* Proposed */}
-        {proposed && (
+        {loading ? (
+          <Panel title="Proposed Model" className='font-headline'>
+            <div className="py-8 text-center text-muted-foreground">Loading...</div>
+          </Panel>
+        ) : proposed && (
           <Panel title="Proposed Model" className='font-headline'> 
             <div className="space-y-4 font-sans">
               <div className="text-center p-4 bg-primary/10 rounded-lg border border-primary/50">
@@ -80,18 +157,19 @@ export function ReviewView() {
               </div>
 
               <div className="grid grid-cols-2 gap-2">
-                <StatCard label="mAP@50" value={proposed.map50.toFixed(3)} />
-                <StatCard label="mAP@75" value={proposed.map75.toFixed(3)} />
-                <StatCard label="Precision" value={proposed.prec.toFixed(3)} />
-                <StatCard label="Recall" value={proposed.rec.toFixed(3)} />
-                <StatCard label="F1 Score" value={proposed.f1.toFixed(3)} />
-                <StatCard label="Speed (ms)" value={proposed.spd.toFixed(1)} />
+                <StatCard label="mAP@50" value={(proposed.map50 ?? 0).toFixed(3)} />
+                <StatCard label="mAP@75" value={(proposed.map75 ?? 0).toFixed(3)} />
+                <StatCard label="Precision" value={(proposed.precision ?? 0).toFixed(3)} />
+                <StatCard label="Recall" value={(proposed.recall ?? 0).toFixed(3)} />
+                <StatCard label="F1 Score" value={(proposed.f1 ?? 0).toFixed(3)} />
+                <StatCard label="Speed (ms)" value={(proposed.speed ?? 0).toFixed(1)} />
               </div>
 
               <div className="space-y-2 pt-2">
                 <Button
                   className="w-full bg-primary hover:bg-primary/90 text-white"
                   onClick={handleApprove}
+                  disabled={!proposed}
                 >
                   <CheckCircle className="w-4 h-4 mr-2" />
                   Approve Model
@@ -111,7 +189,10 @@ export function ReviewView() {
 
       <Panel title="Per-class AP — trained model" className='font-headline'>
         <div className="flex flex-col gap-3 py-4 pr-6 font-sans">
-          {AP_DATA_STATIC.map((item) => {
+          {apData.length === 0 && (
+            <p className="text-sm text-muted-foreground">No per-class AP data available for this model.</p>
+          )}
+          {apData.map((item) => {
             const widthPct = item.value;
             const color = CHART_COLORS[item.name] || '#888';
 
@@ -146,7 +227,8 @@ export function ReviewView() {
                   mAP@50 Improvement:
                 </span>
                 <span className="font-bold text-primary">
-                  +{((proposed.map50 - baseline.map50) * 100).toFixed(1)}%
+                  {map50Improvement >= 0 ? '+' : ''}
+                  {(map50Improvement * 100).toFixed(1)}%
                 </span>
               </div>
               <div className="flex justify-between items-center pb-2 border-b border-border">
@@ -154,15 +236,18 @@ export function ReviewView() {
                   Precision Improvement:
                 </span>
                 <span className="font-bold text-primary">
-                  +{((proposed.prec - baseline.prec) * 100).toFixed(1)}%
+                  {precisionImprovement >= 0 ? '+' : ''}
+                  {(precisionImprovement * 100).toFixed(1)}%
                 </span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-foreground">Speed Trade-off:</span>
                 <span className="font-bold">
-                  {proposed.spd < baseline.spd
-                    ? `+${((baseline.spd - proposed.spd) / baseline.spd * 100).toFixed(0)}% faster`
-                    : `-${((proposed.spd - baseline.spd) / baseline.spd * 100).toFixed(0)}% slower`}
+                  {!hasSpeedComparison
+                    ? 'N/A'
+                    : proposedSpeed < baselineSpeed
+                      ? `+${(((baselineSpeed - proposedSpeed) / baselineSpeed) * 100).toFixed(0)}% faster`
+                      : `-${(((proposedSpeed - baselineSpeed) / baselineSpeed) * 100).toFixed(0)}% slower`}
                 </span>
               </div>
             </>
