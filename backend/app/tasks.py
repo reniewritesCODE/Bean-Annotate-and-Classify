@@ -1,6 +1,6 @@
 from app.worker import celery_app
 from app.database import SessionLocal
-from app.models import TrainingJob
+from app.models import TrainingJob, ModelVersion
 from app.utils.dataset_exporter import DatasetExporter
 from app.utils.trainer import run_training
 from datetime import datetime
@@ -41,6 +41,25 @@ def train_model_task(self, job_id: str, project_id: str, config: dict):
         # Step 3: Mark done + save metrics
         job.status = "done"
         job.config = {**job.config, "metrics": metrics} if job.config else {"metrics": metrics}
+        db.commit()
+
+        # Step 4: Create ModelVersion entry
+        # You may want to generate a unique name or use job_id as the model name
+        model_name = f"model_{job_id[:8]}"
+        mv = ModelVersion(
+            name=model_name,
+            project_id=project_id,
+            training_job_id=job_id,
+            map50=metrics.get("map50"),
+            map75=metrics.get("map75", metrics.get("map50_95")),
+            precision=metrics.get("precision"),
+            recall=metrics.get("recall"),
+            f1=metrics.get("f1"),
+            speed=metrics.get("speed"),
+            s3_key_pt=metrics.get("s3_key_pt"),
+            per_class_ap=metrics.get("per_class_ap"),
+        )
+        db.add(mv)
         db.commit()
 
     except Exception as e:

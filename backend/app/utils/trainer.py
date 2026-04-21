@@ -87,10 +87,29 @@ def run_training(dataset_path: str, job_id: str, epochs=50, imgsz=640, batch=16,
         auto_augment=None if not any([aug.get('blur', False), aug.get('noise', False)]) else "randaugment",
     )
 
+    results_dict = results.results_dict or {}
+    precision = float(results_dict.get("metrics/precision(B)", 0) or 0)
+    recall = float(results_dict.get("metrics/recall(B)", 0) or 0)
+    f1 = (2 * precision * recall / (precision + recall)) if (precision + recall) > 0 else 0.0
+    map50_95 = float(results_dict.get("metrics/mAP50-95(B)", 0) or 0)
+    # Keep API compatibility with existing DB/model field names.
+    map75 = map50_95
+
+    speed_info = getattr(results, "speed", None)
+    inference_speed = 0.0
+    if isinstance(speed_info, dict):
+        inference_speed = float(speed_info.get("inference", 0.0) or 0.0)
+
     return {
-        "map50": float(results.results_dict.get("metrics/mAP50(B)", 0) or 0),
-        "map50_95": float(results.results_dict.get("metrics/mAP50-95(B)", 0) or 0),
-        "precision": float(results.results_dict.get("metrics/precision(B)", 0) or 0),
-        "recall": float(results.results_dict.get("metrics/recall(B)", 0) or 0),
+        "map50": float(results_dict.get("metrics/mAP50(B)", 0) or 0),
+        "map50_95": map50_95,
+        "map75": map75,
+        "precision": precision,
+        "recall": recall,
+        "f1": f1,
+        "speed": inference_speed,
+        "per_class_ap": {},
+        # NOTE: still local path unless upload to object storage is added.
+        "s3_key_pt": str(Path(results.save_dir) / "weights" / "best.pt"),
         "best_model_path": str(Path(results.save_dir) / "weights" / "best.pt"),
     }
