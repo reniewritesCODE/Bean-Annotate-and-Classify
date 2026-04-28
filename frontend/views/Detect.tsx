@@ -5,7 +5,8 @@ import { Panel, StatCard } from '@/components/panels';
 import { DEFECT_CLASSES } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
 import { useApp } from '@/context/AppContext';
-import { Play, Square, Camera, Upload, X, ChevronDown, ChevronUp, Settings } from 'lucide-react';
+import { Play, Square, Camera, Upload, X, ChevronDown, ChevronUp, ZoomIn, Info } from 'lucide-react';
+import { DEFECT_CLASSES as DEFECT_MAP } from '@/lib/constants';
 
 type DetectionMode = 'camera' | 'upload';
 
@@ -29,19 +30,15 @@ export function DetectView() {
   const [isRunning, setIsRunning] = useState(false);
   const [threshold, setThreshold] = useState(0.5);
   const [mode, setMode] = useState<DetectionMode>('camera');
-  const [selectedModel, setSelectedModel] = useState<string>('YOLOv8-large');
+  const [selectedModelId, setSelectedModelId] = useState<string>('');
   const [showModelSelector, setShowModelSelector] = useState(false);
   const [liveDetections, setLiveDetections] = useState<any[]>([]);
   
-  const AVAILABLE_MODELS = [
-    { name: 'YOLOv8-nano', description: 'Fastest, lowest accuracy' },
-    { name: 'YOLOv8-small', description: 'Balanced speed/accuracy' },
-    { name: 'YOLOv8-medium', description: 'Good accuracy' },
-    { name: 'YOLOv8-large', description: 'Best accuracy, slower' },
-  ];
+  const [availableModels, setAvailableModels] = useState<Array<{id: string; name: string; description: string; is_base: boolean}>>([]);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]);
   const [selectedImageId, setSelectedImageId] = useState<string | null>(null);
+  const [lightboxImageId, setLightboxImageId] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [collapsedPanels, setCollapsedPanels] = useState(false);
   const [detectionStats, setDetectionStats] = useState({
@@ -49,6 +46,47 @@ export function DetectView() {
     classes: {} as Record<number, number>,
   });
   const { addToast, currentProject } = useApp();
+
+  // Fetch available models (base + trained models with metrics)
+  useEffect(() => {
+    if (!currentProject?.id) return;
+    
+    const fetchModels = async () => {
+      const token = localStorage.getItem('access_token');
+      try {
+        const res = await fetch(`/api/projects/${currentProject.id}/models`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) throw new Error('Failed to fetch models');
+        const models = await res.json();
+        
+        // Filter: keep base model and models marked as production
+        const detectModels = models.filter((m: any) => 
+          m.is_base || m.is_production
+        );
+        
+        setAvailableModels(detectModels.map((m: any) => ({
+          id: m.id,
+          name: m.name,
+          description: m.is_base ? 'Base model' : `mAP50: ${(m.map50 * 100).toFixed(1)}%`,
+          is_base: m.is_base
+        })));
+        
+        // Select base model by default, or first available
+        const baseModel = detectModels.find((m: any) => m.is_base);
+        if (baseModel) {
+          setSelectedModelId(baseModel.id);
+        } else if (detectModels.length > 0) {
+          setSelectedModelId(detectModels[0].id);
+        }
+      } catch (err) {
+        console.error('Failed to fetch models:', err);
+        addToast('Failed to load models', 'error');
+      }
+    };
+    
+    fetchModels();
+  }, [currentProject?.id, addToast]);
 
 
   const handleStart = () => {
@@ -188,6 +226,7 @@ export function DetectView() {
       formData.append('file', img.file);
       formData.append('threshold', threshold.toString());
       formData.append('device', device);
+      formData.append('model_id', selectedModelId);
 
       const token = localStorage.getItem('access_token');
       const res = await fetch(`/api/projects/${currentProject.id}/inference/image`, {
@@ -234,7 +273,7 @@ export function DetectView() {
     let isWaitingForResponse = false;
 
     socket.onopen = () => {
-      socket.send(JSON.stringify({ config: { device, threshold } }));
+      socket.send(JSON.stringify({ config: { device, threshold, model_id: selectedModelId } }));
       requestFrame();
     };
 
@@ -297,7 +336,7 @@ export function DetectView() {
 
   const renderDetections = (detections: any[]) => {
     return detections.map((det, i) => {
-      const cls = DEFECT_CLASSES.find(c => c.id === det.cls) || DEFECT_CLASSES[0];
+      const cls = DEFECT_CLASSES[det.cls] || DEFECT_CLASSES[0];
       const left = (det.x - det.w / 2) * 100;
       const top = (det.y - det.h / 2) * 100;
       const width = det.w * 100;
@@ -322,6 +361,15 @@ export function DetectView() {
     });
   };
 
+  // Close lightbox on Escape key
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setLightboxImageId(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   // Cleanup camera on unmount
   useEffect(() => {
     return () => {
@@ -331,6 +379,7 @@ export function DetectView() {
   }, []);
 
   return (
+    <>
       <div className="h-[calc(100vh-80px)] flex flex-col gap-3 p-3 overflow-hidden">
       {/* Top Bar: Mode Toggle Only */}
       <div className="flex gap-2 shrink-0">
@@ -425,10 +474,15 @@ export function DetectView() {
                           {uploadedImages.map((img) => (
                             <div
                               key={img.id}
-                              className={`relative aspect-square border-2 rounded-lg overflow-hidden cursor-pointer ${
+                              className={`relative aspect-square border-2 rounded-lg overflow-hidden cursor-pointer group ${
                                 selectedImageId === img.id ? 'border-primary' : 'border-border'
                               }`}
                               onClick={() => setSelectedImageId(img.id)}
+                              onDoubleClick={(e) => {
+                                e.stopPropagation();
+                                setLightboxImageId(img.id);
+                              }}
+                              title="Click to select • Double-click to expand"
                             >
                               <img
                                 src={img.preview}
@@ -440,6 +494,10 @@ export function DetectView() {
                                   {renderDetections(img.detections)}
                                 </div>
                               )}
+                              {/* Double-click hint overlay */}
+                              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors z-10 pointer-events-none flex items-center justify-center">
+                                <ZoomIn className="w-6 h-6 text-white opacity-0 group-hover:opacity-80 transition-opacity drop-shadow-lg" />
+                              </div>
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -478,7 +536,7 @@ export function DetectView() {
                   <Button
                     className="flex-1 bg-primary hover:bg-primary/90 text-white"
                     onClick={handleStart}
-                    disabled={mode === 'upload' && uploadedImages.length === 0}
+                    disabled={(mode === 'upload' && uploadedImages.length === 0) || !selectedModelId}
                   >
                     <Play className="w-4 h-4 mr-2" />
                     {mode === 'upload' ? 'Detect All' : 'Start Detection'}
@@ -511,35 +569,43 @@ export function DetectView() {
           {/* Compact Model + Threshold Row */}
           <div className="flex gap-2 shrink-0">
             {/* Model Selector */}
-            <Panel title="Model" className='font-headline shrink-0 flex-1 min-w-0'>
+            <Panel title="Model" className='font-headline shrink-0 flex-1 min-w-0 !overflow-visible z-1'>
               <div className="font-sans">
                 <div className="relative">
                   <button
                     onClick={() => setShowModelSelector(!showModelSelector)}
                     className="w-full flex items-center justify-between px-2 py-1.5 border border-border rounded-md hover:bg-muted text-left text-sm"
                   >
-                    <span className="font-medium truncate">{selectedModel}</span>
+                    <span className="font-medium truncate">
+                      {availableModels.find(m => m.id === selectedModelId)?.name || 'Select Model'}
+                    </span>
                     {showModelSelector ? <ChevronUp className="w-3 h-3 shrink-0" /> : <ChevronDown className="w-3 h-3 shrink-0" />}
                   </button>
                   {showModelSelector && (
                     <div className="absolute left-0 right-0 top-full mt-1 bg-card border border-border rounded-lg shadow-lg z-50">
                       <div className="p-1.5">
-                        {AVAILABLE_MODELS.map((model) => (
-                          <button
-                            key={model.name}
-                            onClick={() => {
-                              setSelectedModel(model.name);
-                              setShowModelSelector(false);
-                              addToast(`Switched to ${model.name}`, 'info');
-                            }}
-                            className={`w-full text-left px-2 py-1.5 rounded-md text-xs flex flex-col gap-0.5 hover:bg-muted ${
-                              selectedModel === model.name ? 'bg-primary/10 border border-primary/30' : ''
-                            }`}
-                          >
-                            <span className="font-medium">{model.name}</span>
-                            <span className="text-[10px] text-muted-foreground">{model.description}</span>
-                          </button>
-                        ))}
+                        {availableModels.length === 0 ? (
+                          <div className="px-2 py-2 text-xs text-muted-foreground">
+                            No models available
+                          </div>
+                        ) : (
+                          availableModels.map((model) => (
+                            <button
+                              key={model.id}
+                              onClick={() => {
+                                setSelectedModelId(model.id);
+                                setShowModelSelector(false);
+                                addToast(`Switched to ${model.name}`, 'info');
+                              }}
+                              className={`w-full text-left px-2 py-1.5 rounded-md text-xs flex flex-col gap-0.5 hover:bg-muted ${
+                                selectedModelId === model.id ? 'bg-primary/10 border border-primary/30' : ''
+                              }`}
+                            >
+                              <span className="font-medium">{model.name} {model.is_base && '(Base)'}</span>
+                              <span className="text-[10px] text-muted-foreground">{model.description}</span>
+                            </button>
+                          ))
+                        )}
                       </div>
                     </div>
                   )}
@@ -624,5 +690,128 @@ export function DetectView() {
         </div>
       </div>
     </div>
+
+      {/* ── Lightbox Modal ── */}
+      {lightboxImageId && (() => {
+        const lbImg = uploadedImages.find(i => i.id === lightboxImageId);
+        if (!lbImg) return null;
+        const dets = lbImg.detections ?? [];
+        return (
+          <div
+            className="fixed inset-0 z-[9999] flex items-center justify-center"
+            style={{ background: 'rgba(0,0,0,0.88)', backdropFilter: 'blur(6px)' }}
+            onClick={() => setLightboxImageId(null)}
+          >
+            {/* Dialog container */}
+            <div
+              className="relative flex flex-col rounded-2xl overflow-hidden shadow-2xl"
+              style={{ maxWidth: '90vw', maxHeight: '90vh', width: 'auto' }}
+              onClick={e => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between px-4 py-2.5 bg-[#111] border-b border-white/10">
+                <div className="flex items-center gap-2">
+                  <Info className="w-4 h-4 text-primary" />
+                  <span className="text-sm font-semibold text-white truncate max-w-[260px]">
+                    {lbImg.file.name}
+                  </span>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                    lbImg.status === 'done' ? 'bg-green-500/20 text-green-400' :
+                    lbImg.status === 'processing' ? 'bg-yellow-500/20 text-yellow-400' :
+                    lbImg.status === 'error' ? 'bg-red-500/20 text-red-400' :
+                    'bg-white/10 text-white/50'
+                  }`}>
+                    {lbImg.status.toUpperCase()}
+                  </span>
+                  {dets.length > 0 && (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary/20 text-primary">
+                      {dets.length} detection{dets.length !== 1 ? 's' : ''}
+                    </span>
+                  )}
+                </div>
+                <button
+                  onClick={() => setLightboxImageId(null)}
+                  className="p-1.5 rounded-lg hover:bg-white/10 text-white/60 hover:text-white transition-colors"
+                  title="Close (Esc)"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Image + overlays */}
+              <div
+                className="relative bg-black flex items-center justify-center"
+                style={{ maxHeight: 'calc(90vh - 120px)' }}
+              >
+                <div className="relative inline-block">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={lbImg.preview}
+                    alt={lbImg.file.name}
+                    className="block"
+                    style={{ maxWidth: '88vw', maxHeight: 'calc(90vh - 160px)', objectFit: 'contain' }}
+                  />
+                  {/* Detection overlays — rendered relative to image actual render size */}
+                  {dets.length > 0 && (
+                    <div className="absolute inset-0 pointer-events-none">
+                      {dets.map((det, i) => {
+                        const cls = DEFECT_MAP[det.cls] ?? DEFECT_MAP[0];
+                        const left = (det.x - det.w / 2) * 100;
+                        const top  = (det.y - det.h / 2) * 100;
+                        const w    = det.w * 100;
+                        const h    = det.h * 100;
+                        return (
+                          <div
+                            key={i}
+                            className="absolute border-2"
+                            style={{ left: `${left}%`, top: `${top}%`, width: `${w}%`, height: `${h}%`, borderColor: cls.color }}
+                          >
+                            <div
+                              className="absolute -top-5 left-[-2px] text-[11px] px-1.5 py-0.5 font-bold text-white whitespace-nowrap shadow"
+                              style={{ backgroundColor: cls.color }}
+                            >
+                              {cls.name} {(det.conf * 100).toFixed(0)}%
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Footer: per-class chips */}
+              {dets.length > 0 && (() => {
+                const counts: Record<number, number> = {};
+                dets.forEach(d => { counts[d.cls] = (counts[d.cls] || 0) + 1; });
+                return (
+                  <div className="flex flex-wrap gap-2 px-4 py-2.5 bg-[#111] border-t border-white/10">
+                    {Object.entries(counts).map(([clsId, count]) => {
+                      const cls = DEFECT_MAP[Number(clsId)] ?? DEFECT_MAP[0];
+                      return (
+                        <span
+                          key={clsId}
+                          className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full text-white"
+                          style={{ backgroundColor: cls.color + '33', border: `1px solid ${cls.color}66` }}
+                        >
+                          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: cls.color }} />
+                          {cls.name}
+                          <span
+                            className="ml-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold text-white"
+                            style={{ backgroundColor: cls.color }}
+                          >
+                            {count}
+                          </span>
+                        </span>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+        );
+      })()}
+    </>
   );
 }

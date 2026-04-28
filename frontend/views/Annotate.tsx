@@ -67,16 +67,18 @@ function ImageThumbnail({
 }
 
 // ─── Category badge ────────────────────────────────────────────────────────────
-function CatBadge({ cat }: { cat: 1 | 2 }) {
+function CatBadge({ cat }: { cat: 0 | 1 | 2 }) {
+  const configs = {
+    0: { label: 'Cat0', color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' },
+    1: { label: 'Cat1', color: 'text-rose-400', bg: 'bg-rose-500/10', border: 'border-rose-500/20' },
+    2: { label: 'Cat2', color: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/20' },
+  };
+  
+  const { label, color, bg, border } = configs[cat];
+  
   return (
-    <span
-      className={`text-[10px] font-bold px-1.5 py-1 rounded leading-none  ${
-        cat === 1
-          ? 'bg-[#FCEBEB] text-[#791F1F]'
-          : 'bg-secondary text-muted-foreground'
-      }`}
-    >
-      Cat{cat}
+    <span className={`text-[10px] font-bold px-2 py-0.5 rounded border leading-none whitespace-nowrap transition-colors ${color} ${bg} ${border}`}>
+      {label}
     </span>
   );
 }
@@ -88,7 +90,24 @@ export function AnnotateView() {
   // Add useRef to your imports from 'react'
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  const SHORTCUT_LABELS = ['1', '2', '3', '4', '5', '6', 'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'];
+  // Sort defect classes by category (Cat0, Cat1, Cat2)
+  const sortedDefectClasses = useMemo(() => {
+    return [...DEFECT_CLASSES].sort((a, b) => parseInt(a.category) - parseInt(b.category));
+  }, []);
+
+  // Build shortcut groups based on first letter of class names
+  const shortcutGroups = useMemo(() => {
+    const groups: Record<string, number[]> = {};
+    sortedDefectClasses.forEach((cls) => {
+      const firstLetter = cls.name.charAt(0).toLowerCase();
+      if (!groups[firstLetter]) groups[firstLetter] = [];
+      groups[firstLetter].push(cls.id);
+    });
+    return groups;
+  }, [sortedDefectClasses]);
+
+  // Track current index within each shortcut group for cycling
+  const shortcutIndicesRef = useRef<Record<string, number>>({});
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [selectedClass, setSelectedClass] = useState(1);
@@ -138,15 +157,15 @@ export function AnnotateView() {
 
   const handleGlobalKey = useCallback(
     (e: KeyboardEvent) => {
-      const shortcutMap: Record<string, number> = {
-        '1': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, 'q': 7, 'w': 8, 'e': 9, 'r': 10,
-        't': 11, 'y': 12, 'u': 13, 'i': 14, 'o': 15, 'p': 16
-      };
+      const key = e.key.toLowerCase();
 
-      const targetId = shortcutMap[e.key.toLowerCase()];
-
-      if (targetId && targetId <= DEFECT_CLASSES.length) {
-        setSelectedClass(targetId);
+      // Handle first-letter cycling shortcuts
+      const matchingIds = shortcutGroups[key];
+      if (matchingIds && matchingIds.length > 0) {
+        const currentIdx = shortcutIndicesRef.current[key] ?? -1;
+        const nextIdx = (currentIdx + 1) % matchingIds.length;
+        shortcutIndicesRef.current[key] = nextIdx;
+        setSelectedClass(matchingIds[nextIdx]);
         return;
       }
 
@@ -170,7 +189,7 @@ export function AnnotateView() {
       }
       if (e.key === 'Escape') setSelectedBoxId(null);
     },
-    [selectedBoxId, currentImage, annotations, setAnnotations, setSelectedClass] // Added setSelectedClass to dependencies
+    [selectedBoxId, currentImage, annotations, setAnnotations, setSelectedClass, shortcutGroups]
   );
   useEffect(() => {
     window.addEventListener('keydown', handleGlobalKey);
@@ -423,18 +442,18 @@ export function AnnotateView() {
             </div>
             <div className="custom-scrollbar pl-3 pb-3 flex-1 min-h-0 overflow-y-auto font-sans">
               <div ref={scrollContainerRef} className='pr-2 space-y-1'>
-                 {DEFECT_CLASSES.map((cls, idx) => {
-                    const classId = idx + 1;
+                 {sortedDefectClasses.map((cls) => {
+                    const classId = cls.id;
                     const isSelected = selectedClass === classId;
 
-                    const shortcutLabel = SHORTCUT_LABELS[idx] || classId;
+                    // Show first letter as shortcut
+                    const shortcutLabel = cls.name.charAt(0).toUpperCase();
 
-                    const cat: 1 | 2 =
-                      (cls as any).category ?? (classId <= 6 ? 1 : 2);
+                    const cat: 0 | 1 | 2 = parseInt(cls.category || '1') as 0 | 1 | 2;
                     return (
                       <button
                         key={cls.name}
-                        data-class-id={classId} 
+                        data-class-id={classId}
                         onClick={() => setSelectedClass(classId)}
                         className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg border-2 transition-all text-left"
                         style={{
@@ -586,8 +605,7 @@ export function AnnotateView() {
               {[
                 ['drag', 'draw box'],
                 ['Del', 'remove box'],
-                ['1–6', 'cat-1 defect class'],
-                ['q-p', 'cat-2 defect class'],
+                ['a-z', 'first letter cycles'],
                 ['Esc', 'deselect'],
               ].map(([key, desc]) => (
                 <div key={key} className="flex items-center gap-2.5">

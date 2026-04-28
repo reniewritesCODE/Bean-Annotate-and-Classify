@@ -5,17 +5,19 @@ import json
 from pathlib import Path
 
 
-BASE_MODEL_PATH = "models/base/robusta_base.pt"
+BASE_MODEL_PATH = "models/base/best.pt"
 RUNS_DIR = "models/runs"
 PROGRESS_DIR = "models/progress"
 
-def run_training(dataset_path: str, job_id: str, epochs=50, imgsz=640, batch=16, augmentations: dict = None) -> dict:
+def run_training(dataset_path: str, job_id: str, epochs=50, imgsz=640, batch=16, augmentations: dict = None, base_model_path: str = None) -> dict:
     from ultralytics import YOLO
 
     os.makedirs(PROGRESS_DIR, exist_ok=True)
     progress_file = os.path.join(PROGRESS_DIR, f"{job_id}.json")
 
-    model = YOLO(BASE_MODEL_PATH)
+    # Use provided base model path or fall back to default
+    model_path = base_model_path or BASE_MODEL_PATH
+    model = YOLO(model_path)
 
     # ── Live progress callback ─────────────────────────────────────────────
     def on_epoch_end(trainer):
@@ -87,10 +89,77 @@ def run_training(dataset_path: str, job_id: str, epochs=50, imgsz=640, batch=16,
         auto_augment=None if not any([aug.get('blur', False), aug.get('noise', False)]) else "randaugment",
     )
 
+    # Extract per-class AP metrics if available
+    per_class_ap = None
+    if hasattr(results, 'ap_class_index') and hasattr(results, 'ap'):
+        try:
+            class_names = model.names if hasattr(model, 'names') else {}
+            per_class_ap = {}
+            for idx, class_id in enumerate(results.ap_class_index):
+                class_name = class_names.get(int(class_id), f"class_{class_id}")
+                if hasattr(results, 'ap') and len(results.ap) > idx:
+                    per_class_ap[class_name] = float(results.ap[idx])
+        except Exception as e:
+            print(f"Warning: Could not extract per-class AP: {e}")
+
     return {
         "map50": float(results.results_dict.get("metrics/mAP50(B)", 0) or 0),
         "map50_95": float(results.results_dict.get("metrics/mAP50-95(B)", 0) or 0),
         "precision": float(results.results_dict.get("metrics/precision(B)", 0) or 0),
         "recall": float(results.results_dict.get("metrics/recall(B)", 0) or 0),
+        "per_class_ap": per_class_ap,
         "best_model_path": str(Path(results.save_dir) / "weights" / "best.pt"),
+    }
+
+
+def run_evaluation(model_path: str, dataset_path: str) -> dict:
+    from ultralytics import YOLO
+    model = YOLO(model_path)
+    
+    data_yaml = os.path.join(dataset_path, "data.yaml")
+    if not os.path.exists(data_yaml):
+        raise FileNotFoundError(f"data.yaml not found at {data_yaml}")
+
+    # Determine which split to use for evaluation
+    # Default to 'test', but fall back to 'val' or 'train' if splits are empty/missing labels
+    eval_split = 'test'
+    
+    def split_has_labels(s):
+        labels_path = os.path.join(dataset_path, s, 'labels')
+        if not os.path.exists(labels_path):
+            return False
+        # Check if any .txt file has content > 0
+        for f in os.listdir(labels_path):
+            if f.endswith('.txt') and os.path.getsize(os.path.join(labels_path, f)) > 0:
+                return True
+        return False
+
+    if not split_has_labels('test'):
+        if split_has_labels('val'):
+            eval_split = 'val'
+            print(f"ℹ️  'test' split has no labels, falling back to 'val'")
+        elif split_has_labels('train'):
+            eval_split = 'train'
+            print(f"ℹ️  'test' and 'val' splits have no labels, falling back to 'train'")
+
+    results = model.val(data=data_yaml, split=eval_split, verbose=False)
+    
+    # Extract per-class AP
+    per_class_ap = None
+    try:
+        class_names = model.names
+        per_class_ap = {}
+        for idx, class_id in enumerate(results.ap_class_index):
+            class_name = class_names.get(int(class_id), f"class_{class_id}")
+            if hasattr(results, 'ap') and len(results.ap) > idx:
+                per_class_ap[class_name] = float(results.ap[idx])
+    except Exception as e:
+        print(f"Warning: Could not extract per-class AP: {e}")
+
+    return {
+        "map50": float(results.results_dict.get("metrics/mAP50(B)", 0) or 0),
+        "map50_95": float(results.results_dict.get("metrics/mAP50-95(B)", 0) or 0),
+        "precision": float(results.results_dict.get("metrics/precision(B)", 0) or 0),
+        "recall": float(results.results_dict.get("metrics/recall(B)", 0) or 0),
+        "per_class_ap": per_class_ap,
     }

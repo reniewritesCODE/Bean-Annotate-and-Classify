@@ -97,6 +97,8 @@ class ModelVersion(Base):
     precision = Column(Float, nullable=True)
     recall = Column(Float, nullable=True)
     mlflow_run_id = Column(String, nullable=True)
+    is_approved = Column(Boolean, default=False)  # Approved for registry
+    per_class_ap = Column(JSON, nullable=True)  # Per-class AP metrics
     created_at = Column(DateTime, default=datetime.utcnow)
 
 

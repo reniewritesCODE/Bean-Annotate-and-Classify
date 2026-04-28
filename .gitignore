@@ -37,6 +37,8 @@ backend/venv/
 backend/__pycache__/
 backend/*.log
 backend/datasets/
+backend/models/base/baseline model dataset
+backend/models/base_temp
 
 # Frontend / React
 frontend/node_modules/

@@ -68,7 +68,7 @@ export function RegisterView({ onBackToLogin }: RegisterViewProps) {
 
   return (
     <div
-      className="relative min-h-screen w-full overflow-hidden font-sans"
+      className="relative h-screen w-full overflow-hidden font-sans"
       style={{ background: '#0e0e0e', color: '#ffffff' }}
     >
       <style>{`
@@ -112,10 +112,10 @@ export function RegisterView({ onBackToLogin }: RegisterViewProps) {
       <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full pointer-events-none"
            style={{ background: 'rgba(255,145,89,0.10)', filter: 'blur(150px)' }} />
 
-      <main className="relative flex min-h-screen w-full flex-col md:flex-row items-center justify-center">
+      <main className="relative flex h-screen w-full flex-col md:flex-row items-center justify-center overflow-hidden">
         
         {/* ── LEFT: Register Form ── */}
-        <section className="relative z-10 w-full md:w-1/2 flex items-center justify-center p-6 lg:p-12 pt-28">
+        <section className="relative z-10 w-full md:w-1/2 flex items-center justify-center p-6 lg:p-12">
           <div className="w-full max-w-md">
             
             {/* <button 

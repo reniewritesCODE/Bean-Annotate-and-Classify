@@ -11,6 +11,13 @@ import { Package, CheckCircle, Layers, Calendar, ArrowRight, X, Trash2, Edit2, E
 import Link from 'next/link';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { IndividualAugmentationPreview } from '@/components/IndividualAugmentationPreview';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface Version {
   id: string;
@@ -363,16 +370,20 @@ export function VersionsView() {
             <div className="flex flex-col text-sm px-2 font-sans">
               <div className="flex justify-between items-center py-3 border-b border-border/50">
                 <span className="font-medium text-foreground">Image size</span>
-                <select
-                  value={config.imageSize}
-                  onChange={(e) => setConfig({ ...config, imageSize: parseInt(e.target.value) })}
+                <Select
+                  value={config.imageSize.toString()}
+                  onValueChange={(val) => setConfig({ ...config, imageSize: parseInt(val) })}
                   disabled={isCreatingVersion}
-                  className="bg-transparent border border-border rounded-md px-3 py-1.5 min-w-[160px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                 >
-                  <option value={320}>320</option>
-                  <option value={640}>640</option>
-                  <option value={1280}>1280</option>
-                </select>
+                  <SelectTrigger className="w-[160px]">
+                    <SelectValue placeholder="Size" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="320">320</SelectItem>
+                    <SelectItem value="640">640</SelectItem>
+                    <SelectItem value="1280">1280</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               {/* Preprocessing */}

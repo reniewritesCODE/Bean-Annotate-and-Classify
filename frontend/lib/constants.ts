@@ -1,22 +1,23 @@
 import { DefectClass, Model } from './types';
 
 export const DEFECT_CLASSES: DefectClass[] = [
-  { id: 1, name: 'Full Black', category: '1', color: '#ef4444' },
-  { id: 2, name: 'Full Sour', category: '1', color: '#ea580c' },
-  { id: 3, name: 'Fungus Damage', category: '1', color: '#d97706' },
-  { id: 4, name: 'Severe Insect Damage', category: '1', color: '#be185d' },
-  { id: 5, name: 'Foreign Matter', category: '1', color: '#3A86FF' },
-  { id: 6, name: 'Dried Cherry/Pod', category: '1', color: '#8338EC' },
-  { id: 7, name: 'Partial Black', category: '2', color: '#8b5cf6' },
-  { id: 8, name: 'Partial Sour', category: '2', color: '#3b82f6' },
-  { id: 9, name: 'Hull/Husk', category: '2', color: '#06D6A0' },
-  { id: 10, name: 'Parchment/Pergamino', category: '2', color: '#EF476F' },
-  { id: 11, name: 'Slight Insect Damage', category: '2', color: '#118AB2' },
-  { id: 12, name: 'Floater', category: '2', color: '#F72585' },
-  { id: 13, name: 'Immature/Unripe', category: '2', color: '#10b981' },
-  { id: 14, name: 'Withered', category: '2', color: '#7209B7' },
-  { id: 15, name: 'Shell', category: '2', color: '#4CC9F0' },
-  { id: 16, name: 'Broken/Chipped/Cut', category: '2', color: '#65a30d' },
+  { id: 16, name: 'broken-chipped-cut', category: '2', color: '#65a30d' }, // 0
+  { id: 6, name: 'dried-cherry-pod', category: '1', color: '#8338EC' },    // 1
+  { id: 12, name: 'floater', category: '2', color: '#F72585' },           // 2
+  { id: 5, name: 'foreign-matter', category: '1', color: '#3A86FF' },      // 3
+  { id: 1, name: 'full-black', category: '1', color: '#ef4444' },          // 4
+  { id: 2, name: 'full-sour', category: '1', color: '#ea580c' },           // 5
+  { id: 3, name: 'fungus-damage', category: '1', color: '#d97706' },       // 6
+  { id: 17, name: 'good', category: '0', color: '#10b981' },               // 7
+  { id: 9, name: 'husk', category: '2', color: '#06D6A0' },           // 8
+  { id: 13, name: 'immature', category: '2', color: '#10b981' },    // 9
+  { id: 10, name: 'parchment', category: '2', color: '#EF476F' }, // 10
+  { id: 7, name: 'partial-black', category: '2', color: '#8b5cf6' },       // 11
+  { id: 8, name: 'partial-sour', category: '2', color: '#3b82f6' },        // 12
+  { id: 4, name: 'severe-insect-damage', category: '1', color: '#be185d' }, // 13
+  { id: 15, name: 'shell', category: '2', color: '#4CC9F0' },              // 14
+  { id: 11, name: 'slight-insect-damage', category: '2', color: '#118AB2' }, // 15
+  { id: 14, name: 'withered', category: '2', color: '#7209B7' },           // 16
 ];
 
 export const MODELS: Model[] = [
@@ -50,7 +51,7 @@ export const MODELS: Model[] = [
     spd: 9.4,
     type: 'proposed',
   },
-  {
+  { 
     name: 'YOLOv8-large',
     map50: 0.912,
     map75: 0.678,

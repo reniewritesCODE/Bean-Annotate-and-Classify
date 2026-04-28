@@ -106,13 +106,14 @@ export function ProjectsView() {
               className="pl-10 pr-4 py-2 bg-sidebar-accent/30 border border-sidebar-border rounded-xl text-sm w-full md:w-56 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-white"
             />
           </div>
-          <Button 
-            onClick={() => setIsCreating(true)} 
-            className="rounded-xl gap-2 h-10 px-4 bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg shadow-primary/20"
+          <button
+            onClick={() => setIsCreating(true)}
+            className="gradient-button rounded-xl gap-2 h-10 px-5 flex items-center font-bold text-sm text-black"
+            style={{ boxShadow: '0 4px 20px -4px rgba(255,145,89,0.4)' }}
           >
             <Plus className="w-4 h-4" />
             New Project
-          </Button>
+          </button>
         </div>
       </div>
 
@@ -217,39 +218,73 @@ export function ProjectsView() {
       </div>
 
       {isCreating && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-card border border-border rounded-2xl w-full max-w-md shadow-2xl ring-1 ring-white/10">
-            <form onSubmit={handleCreate} className="p-6 space-y-4">
-              <h2 className="text-xl font-bold text-foreground font-headline">New Project Registry</h2>
-              <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Project Name</label>
-                <input
-                  autoFocus
-                  type="text"
-                  value={newProject.name}
-                  onChange={(e) => setNewProject({ ...newProject, name: e.target.value })}
-                  placeholder="Registry Identifier"
-                  className="w-full bg-secondary border border-border rounded-xl px-4 py-3 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-sans"
-                  required
-                />
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: 'rgba(0,0,0,0.80)', backdropFilter: 'blur(8px)' }}
+          onClick={() => setIsCreating(false)}
+        >
+          <div
+            className="glass-panel rounded-2xl w-full max-w-md"
+            style={{ boxShadow: '0 32px 64px -16px rgba(0,0,0,0.6)' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <form onSubmit={handleCreate} className="p-6 space-y-5">
+              <div>
+                <h2 className="text-xl font-bold text-white font-headline">New Project</h2>
+                <p className="text-xs text-white/30 mt-1">Create a new annotation and training workspace.</p>
               </div>
-              <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Description (Optional)</label>
-                <textarea
-                  value={newProject.description}
-                  onChange={(e) => setNewProject({ ...newProject, description: e.target.value })}
-                  placeholder="Define research parameters..."
-                  rows={3}
-                  className="w-full bg-secondary border border-border rounded-xl px-4 py-3 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-sans resize-none"
-                />
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-white/40 mb-2">
+                    Project Name
+                  </label>
+                  <div className="field-underline-wrap">
+                    <input
+                      autoFocus
+                      type="text"
+                      value={newProject.name}
+                      onChange={(e) => setNewProject({ ...newProject, name: e.target.value })}
+                      placeholder="e.g. Robusta Batch 2026"
+                      className="w-full rounded-xl py-3.5 px-4 text-white placeholder-white/20 outline-none rim-light font-sans text-sm"
+                      style={{ background: '#201f1f', border: 'none' }}
+                      required
+                    />
+                    <div className="underline-bar" />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-white/40 mb-2">
+                    Description (optional)
+                  </label>
+                  <div className="field-underline-wrap">
+                    <textarea
+                      value={newProject.description}
+                      onChange={(e) => setNewProject({ ...newProject, description: e.target.value })}
+                      placeholder="Describe the project scope..."
+                      rows={3}
+                      className="w-full rounded-xl py-3.5 px-4 text-white placeholder-white/20 outline-none rim-light font-sans text-sm resize-none"
+                      style={{ background: '#201f1f', border: 'none' }}
+                    />
+                    <div className="underline-bar" />
+                  </div>
+                </div>
               </div>
-              <div className="flex gap-3 pt-2">
-                <Button type="button" variant="ghost" onClick={() => setIsCreating(false)} className="flex-1 rounded-xl">
+              <div className="flex gap-3 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setIsCreating(false)}
+                  className="flex-1 py-3 rounded-xl text-sm font-semibold text-white/40 hover:text-white/70 transition-colors"
+                  style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
+                >
                   Cancel
-                </Button>
-                <Button type="submit" className="flex-1 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90">
-                  Register Project
-                </Button>
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 gradient-button py-3 rounded-xl text-sm font-bold text-black"
+                  style={{ boxShadow: '0 8px 24px -6px rgba(255,145,89,0.3)' }}
+                >
+                  Create Project
+                </button>
               </div>
             </form>
           </div>
