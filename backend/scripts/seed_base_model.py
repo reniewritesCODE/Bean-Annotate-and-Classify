@@ -15,10 +15,10 @@ s3 = boto3.client(
 )
 
 BUCKET = os.getenv('S3_BUCKET')
-local_path = 'models/base/robusta_base.pt'
-s3_key = 'models/base/robusta_base.pt'
+local_path = 'models/base/best.pt'
+s3_key = 'models/base/best.pt'
 
-print("Uploading base model to MinIO...")
+print("Uploading custom base model to MinIO...")
 s3.upload_file(local_path, BUCKET, s3_key)
 print("Upload completed.")
 
@@ -27,18 +27,21 @@ conn = psycopg2.connect(os.getenv('DATABASE_URL'))
 cur = conn.cursor()
 
 try:
+    # First, demote any existing base models to prevent duplicates
+    cur.execute('UPDATE model_versions SET is_base = false WHERE is_base = true')
+    demoted_count = cur.rowcount
+    if demoted_count > 0:
+        print(f"ℹ️  Demoted {demoted_count} existing base model(s)")
+
     cur.execute('''
         INSERT INTO model_versions 
         (id, name, is_base, is_production, s3_key_pt, created_at)
         VALUES (%s, %s, true, false, %s, NOW())
-    ''', (str(uuid.uuid4()), 'YOLOv8n base (Robusta)', s3_key))
+    ''', (str(uuid.uuid4()), 'Yolo26n Baseline Model', s3_key))
     conn.commit()
-    print("✅ Base model seeded successfully!")
+    print("✅ Custom base model seeded successfully!")
 except Exception as e:
-    if "duplicate key" in str(e).lower():
-        print("✅ Base model already exists in database.")
-    else:
-        print("❌ Error:", e)
+    print("❌ Error seeding database:", e)
     conn.rollback()
 finally:
     cur.close()

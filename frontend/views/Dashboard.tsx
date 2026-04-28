@@ -119,7 +119,7 @@ export function Dashboard() {
         <Panel title="Class distribution" className="flex flex-col h-full overflow-hidden font-headline">
           <div className="flex flex-col gap-1.5 py-1 pr-4 flex-1 overflow-y-auto min-h-0 custom-scrollbar">
             {isLoading ? (
-              <div className="text-xs text-muted-foreground font-sans py-2">Loading…</div>
+              <div className="text-xs text-white/30 font-sans py-2">Loading…</div>
             ) : error ? (
               <div className="text-xs text-red-400 font-sans py-2">{error}</div>
             ) : (
@@ -131,15 +131,15 @@ export function Dashboard() {
 
                 return (
                   <div key={item.class_id} className="flex items-center gap-2 font-sans">
-                    <span className="w-36 text-right text-xs text-zinc-300 truncate" title={label}>
+                    <span className="w-36 text-right text-[10px] text-white/50 truncate uppercase tracking-wide" title={label}>
                       {label}
                     </span>
-                    <div className="flex-1 h-4 bg-[#262626] rounded-sm relative overflow-hidden">
+                    <div className="flex-1 h-3 rounded-full relative overflow-hidden" style={{ background: 'rgba(255,255,255,0.05)' }}>
                       <div
-                        className="h-full absolute left-0 top-0 rounded-sm flex items-center justify-end pr-2"
+                        className="h-full absolute left-0 top-0 rounded-full flex items-center justify-end pr-2 transition-all duration-500"
                         style={{ width: `${widthPct}%`, backgroundColor: color }}
                       >
-                        <span className="text-[10px] font-semibold text-black/50">
+                        <span className="text-[9px] font-bold text-black/60">
                           {item.count}
                         </span>
                       </div>
@@ -155,22 +155,23 @@ export function Dashboard() {
         <Panel title="Recent Activity" className="flex flex-col h-full overflow-hidden font-headline">
           <div className="space-y-3 flex-1 overflow-y-auto min-h-0 pr-4 custom-scrollbar font-sans">
             {isLoading ? (
-              <div className="text-xs text-muted-foreground py-2">Loading…</div>
+              <div className="text-xs text-white/30 py-2">Loading…</div>
             ) : error ? (
               <div className="text-xs text-red-400 py-2">{error}</div>
             ) : (summary?.recent_activity?.length ?? 0) === 0 ? (
-              <div className="text-xs text-muted-foreground py-2">No activity yet.</div>
+              <div className="text-xs text-white/30 py-2">No activity yet.</div>
             ) : (
               summary!.recent_activity.map((log, idx) => (
                 <div
                   key={`${log.timestamp}-${idx}`}
-                  className="flex gap-3 pb-3 border-b border-border last:border-b-0"
+                  className="flex gap-3 pb-3 last:pb-0"
+                  style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}
                 >
                   <div className="flex-1">
-                    <p className="font-medium text-sm text-foreground">{log.action}</p>
-                    <p className="text-xs text-muted-foreground mt-1">{log.details}</p>
+                    <p className="font-semibold text-sm text-white/80">{log.action}</p>
+                    <p className="text-xs text-white/30 mt-0.5">{log.details}</p>
                   </div>
-                  <p className="text-xs text-muted-foreground whitespace-nowrap">
+                  <p className="text-[10px] text-white/25 whitespace-nowrap">
                     {new Date(log.timestamp).toLocaleString()}
                   </p>
                 </div>

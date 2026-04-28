@@ -25,21 +25,28 @@ class InferenceEngine:
             cls._instance = super(InferenceEngine, cls).__new__(cls)
         return cls._instance
 
-    def get_model(self, db: Session, project_id: str, device: str = "cpu") -> YOLO:
-        # Find the production model for the project
-        model_version = (
-            db.query(ModelVersion)
-            .join(ModelVersion.training_job)
-            .filter(
-                # ModelVersion.training_job.has(project_id=project_id),
-                ModelVersion.is_production == True
+    def get_model(self, db: Session, project_id: str, device: str = "cpu", model_id: str = None) -> YOLO:
+        model_version = None
+        
+        # If specific model_id provided, use it
+        if model_id:
+            model_version = db.query(ModelVersion).filter(ModelVersion.id == model_id).first()
+            if not model_version:
+                raise HTTPException(status_code=404, detail=f"Model {model_id} not found")
+        else:
+            # Find the production model for the project
+            model_version = (
+                db.query(ModelVersion)
+                .join(ModelVersion.training_job)
+                .filter(
+                    ModelVersion.is_production == True
+                )
+                .first()
             )
-            .first()
-        )
-        # Fallback to base model if no production model exists
-        if not model_version:
-            model_version = db.query(ModelVersion).filter(ModelVersion.is_base == True).first()
-            
+            # Fallback to base model if no production model exists
+            if not model_version:
+                model_version = db.query(ModelVersion).filter(ModelVersion.is_base == True).first()
+                
         if not model_version:
             raise HTTPException(status_code=404, detail="No production or base model found for inference.")
 
@@ -88,11 +95,12 @@ async def infer_image(
     file: UploadFile = File(...),
     threshold: float = Form(0.5),
     device: str = Form("cpu"),
+    model_id: str = Form(None),
     db: Session = Depends(get_db),
     # current_user = Depends(get_current_user)
 ):
     try:
-        model = engine.get_model(db, project_id, device=device)
+        model = engine.get_model(db, project_id, device=device, model_id=model_id)
         
         contents = await file.read()
         np_arr = np.frombuffer(contents, np.uint8)
@@ -149,15 +157,20 @@ async def websocket_inference(websocket: WebSocket, project_id: str, db: Session
                 if "threshold" in config:
                     threshold = config["threshold"]
                 
+                # Get model_id from config if provided
+                ws_model_id = config.get("model_id")
+                
                 # Fetch model with specified device lazily or force reload if device changed
-                model = engine.get_model(db, project_id, device=device)
+                model = engine.get_model(db, project_id, device=device, model_id=ws_model_id)
                 await websocket.send_text(json.dumps({"type": "config_ack", "message": "Updated"}))
                 continue
             
             # Handle frame messages
             if "frame" in payload:
                 if model is None:
-                    model = engine.get_model(db, project_id, device=device)
+                    # Use model_id from config if available
+                    ws_model_id = config.get("model_id") if 'config' in locals() else None
+                    model = engine.get_model(db, project_id, device=device, model_id=ws_model_id)
 
                 # Decode base64 to image
                 frame_data = payload["frame"]

@@ -1,30 +1,36 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { LoginView } from '@/views/Login';
 import { RegisterView } from '@/views/Register';
 import { useAuth } from '@/context/AuthContext';
-import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 
-export default function LoginPage() {
-  const { isAuthenticated, isLoading } = useAuth();
+function LoginContent() {
   const [view, setView] = useState<'login' | 'register'>('login');
+  const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
+  // Redirect authenticated users to home (Project Portfolio)
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
       router.push('/');
     }
   }, [isLoading, isAuthenticated, router]);
 
-  if (isLoading || isAuthenticated) {
+  if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center bg-[#0e0e0e]">
         <Loader2 className="w-8 h-8 animate-spin text-[#ff9159]" />
       </div>
     );
+  }
+
+  // Don't render login form if already authenticated (will redirect)
+  if (isAuthenticated) {
+    return null;
   }
 
   return (
@@ -35,5 +41,17 @@ export default function LoginPage() {
         <RegisterView onBackToLogin={() => setView('login')} />
       )}
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex h-screen items-center justify-center bg-[#0e0e0e]">
+        <Loader2 className="w-8 h-8 animate-spin text-[#ff9159]" />
+      </div>
+    }>
+      <LoginContent />
+    </Suspense>
   );
 }

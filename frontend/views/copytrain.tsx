@@ -14,6 +14,13 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Zap, Pause2, Square } from 'lucide-react';
 
 interface TrainConfig {
@@ -123,29 +130,37 @@ export function TrainView() {
             <div className="flex flex-col text-sm px-2 font-sans">
               <div className="flex justify-between items-center py-2 border-b border-border/50">
                 <span className="font-medium text-foreground">Base model</span>
-                <select
+                <Select
                   value={config.model}
-                  onChange={(e) => setConfig({ ...config, model: e.target.value })}
+                  onValueChange={(val) => setConfig({ ...config, model: val })}
                   disabled={isTraining}
-                  className="bg-transparent border border-border rounded-md px-3 py-1.5 min-w-[160px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                 >
-                  <option>YOLOv8n (global base)</option>
-                  <option>YOLOv8s</option>
-                  <option>YOLOv8m</option>
-                </select>
+                  <SelectTrigger className="w-[160px]">
+                    <SelectValue placeholder="Model" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="YOLOv8n (global base)">YOLOv8n (global base)</SelectItem>
+                    <SelectItem value="YOLOv8s">YOLOv8s</SelectItem>
+                    <SelectItem value="YOLOv8m">YOLOv8m</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="flex justify-between items-center py-3 border-b border-border/50">
                 <span className="font-medium text-foreground">Strategy</span>
-                <select
+                <Select
                   value={config.strategy}
-                  onChange={(e) => setConfig({ ...config, strategy: e.target.value })}
+                  onValueChange={(val) => setConfig({ ...config, strategy: val })}
                   disabled={isTraining}
-                  className="bg-transparent border border-border rounded-md px-3 py-1.5 min-w-[160px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                 >
-                  <option>Fine-tuning</option>
-                  <option>Transfer Learning</option>
-                </select>
+                  <SelectTrigger className="w-[160px]">
+                    <SelectValue placeholder="Strategy" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Fine-tuning">Fine-tuning</SelectItem>
+                    <SelectItem value="Transfer Learning">Transfer Learning</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="flex justify-between items-center py-3 border-b border-border/50">
@@ -161,16 +176,20 @@ export function TrainView() {
 
               <div className="flex justify-between items-center py-3 border-b border-border/50">
                 <span className="font-medium text-foreground">Batch size</span>
-                <select
-                  value={config.batchSize}
-                  onChange={(e) => setConfig({ ...config, batchSize: parseInt(e.target.value) })}
+                <Select
+                  value={config.batchSize.toString()}
+                  onValueChange={(val) => setConfig({ ...config, batchSize: parseInt(val) })}
                   disabled={isTraining}
-                  className="bg-transparent border border-border rounded-md px-3 py-1.5 min-w-[160px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                 >
-                  <option value={8}>8</option>
-                  <option value={16}>16</option>
-                  <option value={32}>32</option>
-                </select>
+                  <SelectTrigger className="w-[160px]">
+                    <SelectValue placeholder="Batch size" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="8">8</SelectItem>
+                    <SelectItem value="16">16</SelectItem>
+                    <SelectItem value="32">32</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="flex justify-between items-center py-3 border-b border-border/50">
@@ -187,29 +206,37 @@ export function TrainView() {
 
               <div className="flex justify-between items-center py-3 border-b border-border/50">
                 <span className="font-medium text-foreground">Image size</span>
-                <select
-                  value={config.imageSize}
-                  onChange={(e) => setConfig({ ...config, imageSize: parseInt(e.target.value) })}
+                <Select
+                  value={config.imageSize.toString()}
+                  onValueChange={(val) => setConfig({ ...config, imageSize: parseInt(val) })}
                   disabled={isTraining}
-                  className="bg-transparent border border-border rounded-md px-3 py-1.5 min-w-[160px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                 >
-                  <option value={320}>320</option>
-                  <option value={640}>640</option>
-                  <option value={1280}>1280</option>
-                </select>
+                  <SelectTrigger className="w-[160px]">
+                    <SelectValue placeholder="Image size" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="320">320</SelectItem>
+                    <SelectItem value="640">640</SelectItem>
+                    <SelectItem value="1280">1280</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="flex justify-between items-center py-3">
                 <span className="font-medium text-foreground">Augmentation</span>
-                <select
+                <Select
                   value={config.augmentation}
-                  onChange={(e) => setConfig({ ...config, augmentation: e.target.value })}
+                  onValueChange={(val) => setConfig({ ...config, augmentation: val })}
                   disabled={isTraining}
-                  className="bg-transparent border border-border rounded-md px-3 py-1.5 min-w-[160px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                 >
-                  <option>Mosaic + flip</option>
-                  <option>Standard</option>
-                </select>
+                  <SelectTrigger className="w-[160px]">
+                    <SelectValue placeholder="Augmentation" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Mosaic + flip">Mosaic + flip</SelectItem>
+                    <SelectItem value="Standard">Standard</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </Panel>

@@ -12,23 +12,45 @@ from PIL import ExifTags
 # List of classes as defined in frontend/lib/constants.ts
 # These must match exactly for YOLO to be consistent with the UI
 DEFECT_CLASS_NAMES = [
-    'Full Black',           # 1 -> 0
-    'Full Sour',            # 2 -> 1
-    'Fungus Damage',        # 3 -> 2
-    'Severe Insect Damage', # 4 -> 3
-    'Foreign Matter',       # 5 -> 4
-    'Dried Cherry/Pod',     # 6 -> 5
-    'Partial Black',        # 7 -> 6
-    'Partial Sour',         # 8 -> 7
-    'Hull/Husk',            # 9 -> 8
-    'Parchment/Pergamino',  # 10 -> 9
-    'Slight Insect Damage', # 11 -> 10
-    'Floater',              # 12 -> 11
-    'Immature/Unripe',      # 13 -> 12
-    'Withered',             # 14 -> 13
-    'Shell',                # 15 -> 14
-    'Broken/Chipped/Cut'    # 16 -> 15
+    'broken-chipped-cut',    # 0
+    'dried-cherry-pod',      # 1
+    'floater',               # 2
+    'foreign-matter',        # 3
+    'full-black',            # 4
+    'full-sour',             # 5
+    'fungus-damage',         # 6
+    'good',                  # 7
+    'husk',                  # 8
+    'immature',              # 9
+    'parchment',             # 10
+    'partial-black',         # 11
+    'partial-sour',          # 12
+    'severe-insect-damage',  # 13
+    'shell',                 # 14
+    'slight-insect-damage',  # 15
+    'withered'               # 16
 ]
+
+# Map DB class_id (1-16) to YOLO index (0-16) based on yolo26m.pt
+CLASS_ID_MAP = {
+    16: 0,  # Broken/Chipped/Cut
+    6: 1,   # Dried Cherry/Pod
+    12: 2,  # Floater
+    5: 3,   # Foreign Matter
+    1: 4,   # Full Black
+    2: 5,   # Full Sour
+    3: 6,   # Fungus Damage
+    17: 7,  # Good
+    9: 8,   # Hull/Husk
+    13: 9,  # Immature/Unripe
+    10: 10, # Parchment/Pergamino
+    7: 11,  # Partial Black
+    8: 12,  # Partial Sour
+    4: 13,  # Severe Insect Damage
+    15: 14, # Shell
+    11: 15, # Slight Insect Damage
+    14: 16  # Withered
+}
 
 class DatasetExporter:
     def __init__(self, db: Session, base_path: str = "datasets"):
@@ -123,8 +145,8 @@ class DatasetExporter:
         with open(local_label_path, 'w') as f:
             for ann in annotations:
                 # YOLO format: class x_center y_center width height (all normalized 0-1)
-                # DB class_id is 1-indexed, YOLO is 0-indexed
-                yolo_class = ann.class_id - 1
+                # Map DB class_id to model index
+                yolo_class = CLASS_ID_MAP.get(ann.class_id, 0)
                 f.write(f"{yolo_class} {ann.x_center} {ann.y_center} {ann.width} {ann.height}\n")
 
     def _apply_auto_orient(self, image_path: str):

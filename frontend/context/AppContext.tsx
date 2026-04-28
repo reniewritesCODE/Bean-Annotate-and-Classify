@@ -38,9 +38,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const [images, setImages] = useState<ImageData[]>([]);
   const [projects, setProjects] = useState<any[]>([]);
-  const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
+  const [activeProjectId, setActiveProjectId] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('activeProjectId');
+    }
+    return null;
+  });
   const [annotations, setAnnotations] = useState<Record<string, BoundingBox[]>>({});
-  const [selectedImageId, setSelectedImageId] = useState<string | null>(null);
+  const [selectedImageId, setSelectedImageId] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('selectedImageId');
+    }
+    return null;
+  });
   const [trainingMetrics, setTrainingMetrics] = useState<TrainingMetrics[]>([]);
   const [isTraining, setIsTraining] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -138,6 +148,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       fetchImages();
     }
   }, [activeProjectId]);
+
+  // Persist state to localStorage
+  useEffect(() => {
+    if (activeProjectId) {
+      localStorage.setItem('activeProjectId', activeProjectId);
+    } else {
+      localStorage.removeItem('activeProjectId');
+    }
+  }, [activeProjectId]);
+
+  useEffect(() => {
+    if (selectedImageId) {
+      localStorage.setItem('selectedImageId', selectedImageId);
+    } else {
+      localStorage.removeItem('selectedImageId');
+    }
+  }, [selectedImageId]);
 
   const addToast = useCallback(
     (message: string, type: 'success' | 'error' | 'info' = 'info') => {

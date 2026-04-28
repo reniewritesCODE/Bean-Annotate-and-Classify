@@ -14,10 +14,12 @@ import {
   BrainCircuit,
   History,
 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
-export function LoginView({ onRegisterClick }: { onRegisterClick: () => void }) {
+export function LoginView({ onRegisterClick }: { onRegisterClick?: () => void } = {}) {
   const { login } = useAuth();
   const { addToast } = useApp();
+  const router = useRouter();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -62,7 +64,7 @@ export function LoginView({ onRegisterClick }: { onRegisterClick: () => void }) 
 
   return (
     <div
-      className="relative min-h-screen w-full overflow-hidden font-sans"
+      className="relative h-screen w-full overflow-hidden font-sans"
       style={{ background: '#0e0e0e', color: '#ffffff' }}
     >
       {/* ── Google Fonts ── */}
@@ -83,16 +85,10 @@ export function LoginView({ onRegisterClick }: { onRegisterClick: () => void }) 
         }
         .gradient-button:active { transform: scale(0.98); filter: brightness(0.95); }
         .glass-panel {
-          background: rgba(20, 20, 20, 0.6);
-          backdrop-filter: blur(40px);
-          border: 1px solid rgba(255,255,255,0.08);
-          box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
-        }
-        .glass-panel {
-            background: rgba(38, 38, 38, 0.4);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.05);
+          background: rgba(38, 38, 38, 0.4);
+          backdrop-filter: blur(20px);
+          -webkit-backdrop-filter: blur(20px);
+          border: 1px solid rgba(255, 255, 255, 0.05);
         }
         .rim-light { box-shadow: inset 0 1px 0 0 rgba(255,255,255,0.1); }
         .field-underline-wrap { position: relative; }
@@ -130,10 +126,10 @@ export function LoginView({ onRegisterClick }: { onRegisterClick: () => void }) 
            style={{ background: 'rgba(255,145,89,0.10)', filter: 'blur(150px)' }} />
 
       {/* ── Main Two-Column Layout ── */}
-      <main className="relative flex min-h-screen w-full flex-col md:flex-row items-center justify-center">
+      <main className="relative flex h-screen w-full flex-col md:flex-row items-center justify-center overflow-hidden">
 
         {/* ── LEFT: Login Form ── */}
-        <section className="relative z-10 w-full md:w-1/2 flex items-center justify-center p-6 lg:p-12 pt-28">
+        <section className="relative z-10 w-full md:w-1/2 flex items-center justify-center p-6 lg:p-12">
           <div className="w-full max-w-md">
 
             {/* Heading */}
@@ -145,9 +141,9 @@ export function LoginView({ onRegisterClick }: { onRegisterClick: () => void }) 
                 <span className="font-bold text-xl">DOST-CBASS</span>
               </div>
               
-              <h1 className="text-4xl lg:text-4xl font-bold pt-1 font-headline">
+              <h1 className="text-4xl font-bold pt-1 font-headline">
                 Process Your <span className="gradient-text">Beans.</span>
-            </h1>
+              </h1>
               <p className="text-lg" style={{ color: '#adaaaa' }}>Enter credentials to login.</p>
             </div>
 
@@ -184,7 +180,7 @@ export function LoginView({ onRegisterClick }: { onRegisterClick: () => void }) 
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
                       required
-                      className="w-full rounded-xl py-4 px-5 text-white placeholder-zinc-600 outline-none transition-all duration-300 rim-light"
+                      className="w-full rounded-xl py-3.5 px-5 text-white placeholder-zinc-600 outline-none transition-all duration-300 rim-light text-sm"
                       style={{ background: '#201f1f', border: 'none' }}
                     />
                     <div className="underline-bar" />
@@ -207,7 +203,7 @@ export function LoginView({ onRegisterClick }: { onRegisterClick: () => void }) 
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
-                      className="w-full rounded-xl py-4 px-5 text-white placeholder-zinc-600 outline-none transition-all duration-300 rim-light"
+                      className="w-full rounded-xl py-3.5 px-5 text-white placeholder-zinc-600 outline-none transition-all duration-300 rim-light text-sm"
                       style={{ background: '#201f1f', border: 'none' }}
                     />
                     <div className="underline-bar" />
@@ -232,21 +228,29 @@ export function LoginView({ onRegisterClick }: { onRegisterClick: () => void }) 
                 )}
               </button>
 
-              <div className="text-center">
-                <div className='flex justify-center items-center gap-2'>
-                <p className='text-sm'>Don't have account yet?</p>
-                <button
-                   className="text-sm font-semibold hover:underline transition-all"
-                   style={{ color: '#ff9159' }}
-                   onClick={onRegisterClick}
-                >
-                  Register here
-                </button>
-
-                </div>
+              <div className="text-center pt-4">
+                <p className="text-sm text-zinc-500">
+                  Don't have an account yet?{' '}
+                  <button
+                    type="button"
+                    className="font-semibold hover:underline transition-all"
+                    style={{ color: '#ff9159' }}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      if (onRegisterClick) {
+                        onRegisterClick();
+                      } else {
+                        router.push('/register');
+                      }
+                    }}
+                  >
+                    Register here
+                  </button>
+                </p>
+              </div>
               <div className="flex items-center justify-center text-zinc-600 text-[13px] pt-4">
                 © 2026 DOST-CBASS. Coffee Bean Annotation and Scanning System.
-              </div>
               </div>
             </form>
           </div>
@@ -272,7 +276,7 @@ export function LoginView({ onRegisterClick }: { onRegisterClick: () => void }) 
                style={{ background: 'rgba(234,115,251,0.05)', filter: 'blur(60px)' }} />
 
           {/* Dashboard Card */}
-          <div className="relative z-10 glass-panel w-full max-w-2xl rounded-[2.5rem] p-6 lg:p-8 flex flex-col gap-5 rim-light"
+          <div className="relative z-10 glass-panel w-full max-w-2xl rounded-[2.5rem] p-8 flex flex-col gap-6 rim-light"
                style={{ height: '80vh', maxHeight: '720px' }}>
 
             {/* Header */}
@@ -284,7 +288,7 @@ export function LoginView({ onRegisterClick }: { onRegisterClick: () => void }) 
                     Live Analysis Core
                   </span>
                 </div>
-                <h2 className="text-xl lg:text-2xl font-bold font-headline">Dashboard Preview</h2>
+                <h2 className="text-2xl font-bold font-headline">Dashboard Preview</h2>
               </div>
               <div className="p-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.10)' }}>
                 <SlidersHorizontal className="w-5 h-5 text-white/40" />
